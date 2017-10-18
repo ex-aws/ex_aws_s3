@@ -4,7 +4,7 @@ defmodule ExAws.S3.Mixfile do
   def project do
     [
       app: :ex_aws_s3,
-      version: "0.1.0",
+      version: "2.0.0",
       elixir: "~> 1.5",
       elixirc_paths: elixirc_paths(Mix.env),
       start_permanent: Mix.env == :prod,
@@ -25,10 +25,10 @@ defmodule ExAws.S3.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      ex_aws(),
       {:hackney, ">= 0.0.0", only: [:dev, :test]},
       {:sweet_xml, ">= 0.0.0", only: [:dev, :test]},
       {:bypass, "~> 0.7", only: :test},
+      ex_aws(),
     ]
   end
 
