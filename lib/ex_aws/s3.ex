@@ -440,7 +440,7 @@ defmodule ExAws.S3 do
   ]
   @type get_object_opts :: [
     {:response, get_object_response_opts}
-    | head_object_opts
+    | head_object_opt
   ]
   @doc "Get an object from a bucket"
   @spec get_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
@@ -548,14 +548,14 @@ defmodule ExAws.S3 do
     request(:get, bucket, object, resource: "torrent")
   end
 
-  @type head_object_opts :: [
+  @type head_object_opt ::
     {:encryption, customer_encryption_opts}
     | {:range, binary}
     | {:if_modified_since, binary}
     | {:if_unmodified_since, binary}
     | {:if_match, binary}
     | {:if_none_match, binary}
-  ]
+  @type head_object_opts :: [head_object_opt]
 
   @doc "Determine of an object exists"
   @spec head_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
