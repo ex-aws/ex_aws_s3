@@ -171,7 +171,7 @@ defmodule ExAws.S3 do
     params = opts
     |> format_and_take(@params)
 
-    request(:get, bucket, "/", [params: params],
+    request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
     )
