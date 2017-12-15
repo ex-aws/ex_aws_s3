@@ -469,7 +469,7 @@ defmodule ExAws.S3 do
   @type download_file_opts :: [
     max_concurrency: pos_integer,
     chunk_size: pos_integer,
-    timeout: 60_000,
+    timeout: pos_integer,
   ]
 
   @doc """
