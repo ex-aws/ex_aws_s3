@@ -3,8 +3,14 @@ defmodule ExAws.S3Test do
   alias ExAws.{S3, Operation}
 
   test "#get_object" do
-    expected = %Operation.S3{bucket: "bucket", headers: %{"x-amz-server-side-encryption-customer-algorithm" => "md5"}, params: %{"response-content-type" => "application/json"}, path: "object.json", http_method: :get}
-    assert expected == S3.get_object("bucket", "object.json", response: [content_type: "application/json"], encryption: [customer_algorithm: "md5"])
+    expected = %Operation.S3{
+      bucket: "bucket",
+      headers: %{"x-amz-server-side-encryption-customer-algorithm" => "md5"},
+      params: %{"response-content-type" => "application/json"},
+      path: "object.json", http_method: :get}
+    assert expected == S3.get_object("bucket", "object.json",
+      response: [content_type: "application/json"],
+      encryption: [customer_algorithm: "md5"]) |> Map.put(:stream_builder, nil)
   end
 
   test "#put_object" do

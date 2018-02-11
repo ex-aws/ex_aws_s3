@@ -463,7 +463,11 @@ defmodule ExAws.S3 do
     |> build_encryption_headers
     |> Map.merge(headers)
 
-    request(:get, bucket, object, headers: headers, params: response_opts)
+    request(:get, bucket, object,
+      [headers: headers, params: response_opts],
+      stream_builder: fn config ->
+          ExAws.S3.Lazy.get_object!(bucket, object, opts, config)
+      end)
   end
 
   @type download_file_opts :: [
