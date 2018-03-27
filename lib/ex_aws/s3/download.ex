@@ -62,7 +62,11 @@ defimpl ExAws.Operation, for: ExAws.S3.Download do
   alias ExAws.S3.Download
 
   def perform(op, config) do
-    file = File.open!(op.dest, [:write, :delayed_write, :binary])
+    file = cond do
+      is_binary(op.dest) -> File.open!(op.dest, [:write, :delayed_write, :binary])
+      is_pid(op.dest)    -> op.dest
+    end
+    #file = File.open!(op.dest, [:write, :delayed_write, :binary])
 
     op
     |> Download.build_chunk_stream(config)
