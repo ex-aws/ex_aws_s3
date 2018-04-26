@@ -82,7 +82,7 @@ defimpl ExAws.Operation, for: ExAws.S3.Upload do
     with {:ok, op} <- Upload.initialize(op, config) do
       op.src
       |> Stream.with_index(1)
-      |> Task.async_stream(&Upload.upload_chunk!(&1, op, config),
+      |> Task.async_stream(Upload, :upload_chunk!, [Map.delete(op, :src), config],
         max_concurrency: Keyword.get(op.opts, :max_concurrency, 4),
         timeout: Keyword.get(op.opts, :timeout, 30_000)
       )
