@@ -3,11 +3,12 @@ defmodule ExAws.S3.Download do
   Represents an AWS S3 file download operation
   """
 
-  @enforce_keys ~w(bucket path dest)a
+  @enforce_keys ~w(bucket path dest object)a
   defstruct [
     :bucket,
     :path,
     :dest,
+    :object,
     opts: [],
     service: :s3,
   ]
@@ -25,8 +26,8 @@ defmodule ExAws.S3.Download do
 
   def build_chunk_stream(op, config) do
     op.bucket
-    |> get_file_size(op.path, config)
-    |> chunk_stream(op.opts[:chunk_size] || 1024 * 1024)
+    |> get_file_size(op.path, op.object, config)
+    |> chunk_stream(op.opts[:chunk_size] || 4 * 1024 * 1024)
   end
 
   def chunk_stream(file_size, chunk_size) do
@@ -47,12 +48,17 @@ defmodule ExAws.S3.Download do
     end)
   end
 
-  defp get_file_size(bucket, path, config) do
+  defp get_file_size(bucket, nil, path, config) do
     %{headers: headers} = ExAws.S3.head_object(bucket, path) |> ExAws.request!(config)
 
     headers
     |> List.keyfind("Content-Length", 0, nil)
     |> elem(1)
+    |> String.to_integer
+  end
+
+  defp get_file_size(_bucket, object, _path, _config) do
+    object.size
     |> String.to_integer
   end
 end

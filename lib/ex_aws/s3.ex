@@ -487,6 +487,18 @@ defmodule ExAws.S3 do
       bucket: bucket,
       path: path,
       dest: dest,
+      object: nil,
+      opts: opts
+    }
+  end
+
+  @spec download_file(bucket :: binary, path :: binary, dest :: binary, object :: map, opts :: download_file_opts) :: __MODULE__.Download.t
+  def download_file(bucket, path, dest, object, opts) do
+    %__MODULE__.Download{
+      bucket: bucket,
+      path: path,
+      dest: dest,
+      object: object,
       opts: opts
     }
   end
