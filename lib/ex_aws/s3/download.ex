@@ -48,7 +48,7 @@ defmodule ExAws.S3.Download do
     end)
   end
 
-  defp get_file_size(bucket, nil, path, config) do
+  defp get_file_size(bucket, path, nil, config) do
     %{headers: headers} = ExAws.S3.head_object(bucket, path) |> ExAws.request!(config)
 
     headers
@@ -57,7 +57,7 @@ defmodule ExAws.S3.Download do
     |> String.to_integer
   end
 
-  defp get_file_size(_bucket, object, _path, _config) do
+  defp get_file_size(_bucket, _path, object, _config) do
     object.size
     |> String.to_integer
   end
