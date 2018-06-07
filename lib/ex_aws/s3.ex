@@ -872,12 +872,13 @@ defmodule ExAws.S3 do
     expires_in = Keyword.get(opts, :expires_in, 3600)
     virtual_host = Keyword.get(opts, :virtual_host, false)
     query_params = Keyword.get(opts, :query_params, [])
+    canonical_headers = Keyword.get(opts, :canonical_headers, [])
     case expires_in > @one_week do
       true -> {:error, "expires_in_exceeds_one_week"}
       false ->
         url = url_to_sign(bucket, object, config, virtual_host)
         datetime = :calendar.universal_time
-        ExAws.Auth.presigned_url(http_method, url, :s3, datetime, config, expires_in, query_params)
+        ExAws.Auth.presigned_url(http_method, url, :s3, datetime, config, expires_in, query_params, nil, canonical_headers)
     end
   end
 
