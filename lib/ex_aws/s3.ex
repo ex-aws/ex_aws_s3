@@ -84,6 +84,7 @@ defmodule ExAws.S3 do
       {:expires_in, integer}
     | {:virtual_host, boolean}
     | {:query_params, [{binary, binary}]}
+    | {:canonical_headers, [{binary, binary}]}
   ]
 
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
