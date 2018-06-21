@@ -87,6 +87,17 @@ defmodule ExAws.S3.Utils do
     {permission, grants}
   end
 
+  @doc "format a listing marker with properly encoded special characters"
+  def format_marker(params) do
+    sanitized_marker = params["marker"]
+    |> String.replace(~s(&), ~s(&amp))
+    |> String.replace(~s("), ~s("quot))
+    |> String.replace(~s('), ~s('apos))
+    |> String.replace(~s(<), ~s(<lt))
+    |> String.replace(~s(>), ~s(>gt))
+    Map.put(params, "marker", sanitized_marker)
+  end
+
   def build_cors_rule(rule) do
     mapping = [
       allowed_origins: "AllowedOrigin",
