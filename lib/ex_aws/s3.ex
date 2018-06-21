@@ -24,13 +24,13 @@ defmodule ExAws.S3 do
   "path/to/big/file"
   |> S3.Upload.stream_file
   |> S3.upload("my-bucket", "path/on/s3")
-  |> ExAws.request! #=> {:ok, :done}
+  |> ExAws.request #=> {:ok, :done}
   ```
 
   Download large file to disk
   ```
   S3.download_file("my-bucket", "path/on/s3", "path/to/dest/file")
-  |> ExAws.request! #=> {:on, :done}
+  |> ExAws.request #=> {:ok, :done}
   ```
 
   ## More high level functionality
