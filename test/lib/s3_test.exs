@@ -2,6 +2,22 @@ defmodule ExAws.S3Test do
   use ExUnit.Case, async: true
   alias ExAws.{S3, Operation}
 
+  test "#list_objects" do
+    res = S3.list_objects("bucket",
+                        headers: %{"x-amz-request-payer" => "requester"},
+                        prefix: "/path/to/objs")
+    %Operation.S3{
+      headers: headers,
+      params: params,
+      bucket: bucket,
+      http_method: http_method
+    } = res
+    assert headers == %{"x-amz-request-payer" => "requester"}
+    assert params == %{"prefix" => "/path/to/objs"}
+    assert bucket == "bucket"
+    assert http_method == :get
+  end
+
   test "#get_object" do
     expected = %Operation.S3{bucket: "bucket", headers: %{"x-amz-server-side-encryption-customer-algorithm" => "md5"}, params: %{"response-content-type" => "application/json"}, path: "object.json", http_method: :get}
     assert expected == S3.get_object("bucket", "object.json", response: [content_type: "application/json"], encryption: [customer_algorithm: "md5"])
