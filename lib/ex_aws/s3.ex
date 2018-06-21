@@ -8,7 +8,7 @@ defmodule ExAws.S3 do
 
   ### Examples
   ```
-  S3.list_objects |> ExAws.request! #=> {:ok, %{body: [list, of, objects]}}
+  S3.list_objects |> ExAws.request! #=> %{body: [list, of, objects]}
   S3.list_objects |> ExAws.stream! |> Enum.to_list #=> [list, of, objects]
 
   S3.put_object("my-bucket", "path/to/bucket", contents) |> ExAws.request!
