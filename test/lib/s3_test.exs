@@ -192,7 +192,7 @@ defmodule ExAws.S3Test do
             {"X-Amz-Credential", _},
             {"X-Amz-Date", _},
             {"X-Amz-Expires", _},
-            {"X-Amz-SignedHeaders", "host"},
+            {"X-Amz-SignedHeaders", "host;key_one;key_two"},
             {"X-Amz-Signature", _}] = actual_query
   end
 
