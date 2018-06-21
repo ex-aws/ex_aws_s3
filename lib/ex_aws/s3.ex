@@ -24,13 +24,13 @@ defmodule ExAws.S3 do
   "path/to/big/file"
   |> S3.Upload.stream_file
   |> S3.upload("my-bucket", "path/on/s3")
-  |> ExAws.request! #=> :done
+  |> ExAws.request #=> {:ok, :done}
   ```
 
   Download large file to disk
   ```
   S3.download_file("my-bucket", "path/on/s3", "path/to/dest/file")
-  |> ExAws.request! #=> :done
+  |> ExAws.request #=> {:ok, :done}
   ```
 
   ## More high level functionality
@@ -171,7 +171,7 @@ defmodule ExAws.S3 do
     params = opts
     |> format_and_take(@params)
 
-    request(:get, bucket, "/", [params: params],
+    request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
     )
