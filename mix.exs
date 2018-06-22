@@ -1,7 +1,7 @@
 defmodule ExAws.S3.Mixfile do
   use Mix.Project
 
-  @version "2.0.0"
+  @version "2.0.1"
   @service "s3"
   @url "https://github.com/ex-aws/ex_aws_#{@service}"
   @name __MODULE__ |> Module.split |> Enum.take(2) |> Enum.join(".")
@@ -54,7 +54,7 @@ defmodule ExAws.S3.Mixfile do
   defp ex_aws() do
     case System.get_env("AWS") do
       "LOCAL" -> {:ex_aws, path: "../ex_aws"}
-      _ -> {:ex_aws, "~> 2.0.0"}
+      _ -> {:ex_aws, "~> 2.0"}
     end
   end
 end

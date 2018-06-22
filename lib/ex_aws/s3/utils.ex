@@ -7,7 +7,7 @@ defmodule ExAws.S3.Utils do
 
   @headers [:cache_control, :content_disposition, :content_encoding, :content_length, :content_type,
     :expect, :expires, :content_md5]
-  @amz_headers [:storage_class, :website_redirect_location]
+  @amz_headers [:storage_class, :website_redirect_location, :tagging]
   def put_object_headers(opts) do
     opts = opts |> Map.new
 
@@ -85,17 +85,6 @@ defmodule ExAws.S3.Utils do
     |> Enum.join(", ")
 
     {permission, grants}
-  end
-
-  @doc "format a listing marker with properly encoded special characters"
-  def format_marker(params) do
-    sanitized_marker = params["marker"]
-    |> String.replace(~s(&), ~s(&amp))
-    |> String.replace(~s("), ~s("quot))
-    |> String.replace(~s('), ~s('apos))
-    |> String.replace(~s(<), ~s(<lt))
-    |> String.replace(~s(>), ~s(>gt))
-    Map.put(params, "marker", sanitized_marker)
   end
 
   def build_cors_rule(rule) do

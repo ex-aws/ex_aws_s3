@@ -8,7 +8,7 @@ defmodule ExAws.S3 do
 
   ### Examples
   ```
-  S3.list_objects |> ExAws.request! #=> {:ok, %{body: [list, of, objects]}}
+  S3.list_objects |> ExAws.request! #=> %{body: [list, of, objects]}
   S3.list_objects |> ExAws.stream! |> Enum.to_list #=> [list, of, objects]
 
   S3.put_object("my-bucket", "path/to/bucket", contents) |> ExAws.request!
@@ -24,13 +24,13 @@ defmodule ExAws.S3 do
   "path/to/big/file"
   |> S3.Upload.stream_file
   |> S3.upload("my-bucket", "path/on/s3")
-  |> ExAws.request! #=> {:ok, :done}
+  |> ExAws.request #=> {:ok, :done}
   ```
 
   Download large file to disk
   ```
   S3.download_file("my-bucket", "path/on/s3", "path/to/dest/file")
-  |> ExAws.request! #=> {:on, :done}
+  |> ExAws.request #=> {:ok, :done}
   ```
 
   ## More high level functionality
@@ -172,7 +172,7 @@ defmodule ExAws.S3 do
     |> format_and_take(@params)
     |> format_marker
 
-    request(:get, bucket, "/", [params: params],
+    request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
     )
