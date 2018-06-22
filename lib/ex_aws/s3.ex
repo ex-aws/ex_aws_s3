@@ -170,7 +170,6 @@ defmodule ExAws.S3 do
   def list_objects(bucket, opts \\ []) do
     params = opts
     |> format_and_take(@params)
-    |> format_marker
 
     request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
