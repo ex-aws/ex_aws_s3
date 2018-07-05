@@ -13,19 +13,20 @@ defmodule ExAws.S3.Lazy do
 
       {fun, args} -> case fun.(args) do
 
-        results = %{contents: [], common_prefixes: prefixes, is_truncated: "true"} ->
-          {prefixes, {fun, [marker: next_marker(results)]}}
+        results = %{is_truncated: "true"} ->
+          {add_results(results, opts), {fun, [marker: next_marker(results)]}}
 
-        results = %{contents: contents, is_truncated: "true"} ->
-          {contents, {fun, [marker: next_marker(results)]}}
-
-        %{common_prefixes: prefixes} when prefixes != [] ->
-          {prefixes, :quit}
-
-        %{contents: contents} ->
-          {contents, :quit}
+        results ->
+          {add_results(results, opts), :quit}
       end
     end, &(&1))
+  end
+
+  def add_results(results, opts) do
+    case Keyword.get(opts, :stream_prefixes, nil) do
+      nil -> results.contents
+      _ -> results.common_prefixes ++ results.contents
+    end
   end
 
   def next_marker(%{next_marker: "", contents: contents}) do

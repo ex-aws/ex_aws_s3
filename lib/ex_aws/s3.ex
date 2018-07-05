@@ -146,7 +146,8 @@ defmodule ExAws.S3 do
     {:marker, binary} |
     {:prefix, binary} |
     {:encoding_type, binary} |
-    {:max_keys, 0..1000}
+    {:max_keys, 0..1000} |
+    {:stream_prefixes, boolean}
   ]
 
   @doc """
