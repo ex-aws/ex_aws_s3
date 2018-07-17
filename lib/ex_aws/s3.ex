@@ -644,9 +644,9 @@ defmodule ExAws.S3 do
     | {:content_type, binary}
     | {:expect, binary}
     | {:expires, binary}
-      {:if_none_match, binary}
-      {:if_modified_since, binary}
-      {:if_unmodified_since, binary}
+    | {:if_none_match, binary}
+    | {:if_modified_since, binary}
+    | {:if_unmodified_since, binary}
     | {:storage_class, :standard | :redunced_redundancy}
     | {:website_redirect_location, binary}
     | {:encryption, encryption_opts}
