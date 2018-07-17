@@ -6,7 +6,7 @@ defmodule ExAws.S3.Utils do
   def ensure_slash(path), do:  "/" <> path
 
   @headers [:cache_control, :content_disposition, :content_encoding, :content_length, :content_type,
-    :expect, :expires, :content_md5, :if_none_match]
+    :expect, :expires, :content_md5, :if_none_match, :if_modified_since, :if_unmodified_since]
   @amz_headers [:storage_class, :website_redirect_location, :tagging]
   def put_object_headers(opts) do
     opts = opts |> Map.new
