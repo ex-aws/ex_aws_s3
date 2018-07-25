@@ -435,7 +435,7 @@ defmodule ExAws.S3 do
   @type get_object_response_opts :: [
     {:content_language, binary}
     | {:expires, binary}
-    | {:cach_control, binary}
+    | {:cache_control, binary}
     | {:content_disposition, binary}
     | {:content_encoding, binary}
   ]
