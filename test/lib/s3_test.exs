@@ -261,6 +261,18 @@ defmodule ExAws.S3Test do
     assert expected == S3.put_object_tagging(bucket, object, [test: "hello"])
   end
 
+  test "#delete_object_tagging" do
+    bucket = "my-bucket"
+    object = "test.txt"
+    expected = %Operation.S3{
+      bucket: bucket,
+      http_method: :delete,
+      path: object,
+      resource: "tagging"
+    }
+    assert expected == S3.delete_object_tagging(bucket, object)
+  end
+
   defp assert_pre_signed_url(url, expected_scheme_host_path, expected_expire) do
     uri = URI.parse(url)
     assert expected_scheme_host_path == "#{uri.scheme}://#{uri.host}#{uri.path}"

@@ -378,6 +378,13 @@ defmodule ExAws.S3 do
     request(:delete, bucket, object, headers: opts |> Map.new)
   end
 
+  @doc "Remove the entire tag set from the specified object"
+  @spec delete_object_tagging(bucket :: binary, object :: binary, opts :: Keyword.t()) ::
+          ExAws.Operation.S3.t()
+  def delete_object_tagging(bucket, object, opts \\ []) do
+    request(:delete, bucket, object, resource: "tagging", headers: opts |> Map.new())
+  end
+
   @doc """
   Delete multiple objects within a bucket
 
