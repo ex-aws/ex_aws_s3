@@ -233,6 +233,34 @@ defmodule ExAws.S3Test do
     assert expected == S3.get_object_tagging(bucket, object)
   end
 
+  test "#put_object_tagging with empty tags" do
+    bucket = "my-bucket"
+    object = "test.txt"
+    expected = %Operation.S3{
+      body: ~S|<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet></TagSet></Tagging>|,
+      bucket: bucket,
+      http_method: :put,
+      path: object,
+      resource: "tagging",
+      headers: %{"content-md5" => "3z614bAllL7hKml2qps9rg=="},
+    }
+    assert expected == S3.put_object_tagging(bucket, object, [])
+  end
+
+  test "#put_object_tagging" do
+    bucket = "my-bucket"
+    object = "test.txt"
+    expected = %Operation.S3{
+      body: ~S|<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet><Tag><Key>test</Key><Value>hello</Value></Tag></TagSet></Tagging>|,
+      bucket: bucket,
+      http_method: :put,
+      path: object,
+      resource: "tagging",
+      headers: %{"content-md5" => "1TCz8KGUQRyYv1eCE4bRFQ=="},
+    }
+    assert expected == S3.put_object_tagging(bucket, object, [test: "hello"])
+  end
+
   defp assert_pre_signed_url(url, expected_scheme_host_path, expected_expire) do
     uri = URI.parse(url)
     assert expected_scheme_host_path == "#{uri.scheme}://#{uri.host}#{uri.path}"

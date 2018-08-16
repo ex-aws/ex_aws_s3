@@ -662,6 +662,41 @@ defmodule ExAws.S3 do
     request(:put, bucket, object, headers: headers, resource: "acl")
   end
 
+  @doc "Add a set of tags to an existing object"
+  @spec put_object_tagging(
+          bucket :: binary,
+          object :: binary,
+          tags :: Access.t(),
+          opts :: Keyword.t()
+        ) :: ExAws.Operation.S3.t()
+  def put_object_tagging(bucket, object, tags, opts \\ []) do
+    tags_xml =
+      Enum.map(tags, fn
+        {key, value} ->
+          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+      end)
+
+    body = [
+      ~s(<?xml version="1.0" encoding="UTF-8"?>),
+      "<Tagging>",
+      "<TagSet>",
+      tags_xml,
+      "</TagSet>",
+      "</Tagging>"
+    ]
+
+    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+
+    headers =
+      opts
+      |> Map.new()
+      |> Map.merge(%{"content-md5" => content_md5})
+
+    body_binary = body |> IO.iodata_to_binary()
+
+    request(:put, bucket, object, resource: "tagging", body: body_binary, headers: headers)
+  end
+
   @type pub_object_copy_opts :: [
     {:metadata_directive, :COPY | :REPLACE}
     | {:copy_source_if_modified_since, binary}
