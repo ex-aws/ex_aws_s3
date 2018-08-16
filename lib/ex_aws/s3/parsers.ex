@@ -96,6 +96,18 @@ if Code.ensure_loaded?(SweetXml) do
 
     def parse_list_parts(val), do: val
 
+    def parse_object_tagging({:ok, resp = %{body: xml}}) do
+      parsed_body = SweetXml.xpath(xml, ~x"//Tagging",
+        tags: [~x"./TagSet/Tag"l,
+          key: ~x"./Key/text()"s,
+          value: ~x"./Value/text()"s,
+        ]
+      )
+
+      {:ok, %{resp | body: parsed_body}}
+    end
+
+    def parse_object_tagging(val), do: val
   end
 else
   defmodule ExAws.S3.Parsers do
@@ -108,6 +120,7 @@ else
     def parse_complete_multipart_upload(_val), do: missing_xml_parser()
     def parse_list_multipart_uploads(_val), do: missing_xml_parser()
     def parse_list_parts(_val), do: missing_xml_parser()
+    def parse_object_tagging(_val), do: missing_xml_parser()
   end
 
 end

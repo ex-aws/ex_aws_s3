@@ -219,6 +219,20 @@ defmodule ExAws.S3Test do
     assert uri.port == 1234
   end
 
+  test "#get_object_tagging" do
+    bucket = "my-bucket"
+    object = "test.txt"
+    expected = %Operation.S3{
+      body: "",
+      bucket: bucket,
+      http_method: :get,
+      path: object,
+      resource: "tagging",
+      parser: &S3.Parsers.parse_object_tagging/1
+    }
+    assert expected == S3.get_object_tagging(bucket, object)
+  end
+
   defp assert_pre_signed_url(url, expected_scheme_host_path, expected_expire) do
     uri = URI.parse(url)
     assert expected_scheme_host_path == "#{uri.scheme}://#{uri.host}#{uri.path}"

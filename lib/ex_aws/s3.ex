@@ -549,6 +549,15 @@ defmodule ExAws.S3 do
     request(:get, bucket, object, resource: "torrent")
   end
 
+  @doc "Get object tagging"
+  @spec get_object_tagging(bucket :: binary, object :: binary, opts :: Keyword.t()) ::
+          ExAws.Operation.S3.t()
+  def get_object_tagging(bucket, object, opts \\ []) do
+    request(:get, bucket, object, [resource: "tagging", headers: opts |> Map.new()],
+      parser: &ExAws.S3.Parsers.parse_object_tagging/1
+    )
+  end
+
   @type head_object_opt ::
     {:encryption, customer_encryption_opts}
     | {:range, binary}

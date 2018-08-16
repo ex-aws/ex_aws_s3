@@ -97,4 +97,35 @@ defmodule ExAws.S3.ParserTest do
     assert "abcd" == key
     assert "bUCMhxUCGCA0GiTAhTj6cq2rChItfIMYBgO7To9yiuUyDk4CWqhtHPx8cGkgjzyavE2aW6HvhQgu9pvDB3.oX73RC7N3zM9dSU3mecTndVRHQLJCAsySsT6lXRd2Id2a" == upload_id
   end
+
+  test "#parse_object_tagging parses empty tagset" do
+    response = ~S"""
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <TagSet/>
+    </Tagging>
+    """
+    assert {:ok, %{body: body}} = ExAws.S3.Parsers.parse_object_tagging({:ok, %{body: response}})
+    assert body == %{tags: []}
+  end
+
+  test "#parse_object_tagging parses tags" do
+    response = ~S"""
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <TagSet>
+        <Tag>
+          <Key>tag1</Key>
+          <Value>val1</Value>
+        </Tag>
+        <Tag>
+          <Key>tag2</Key>
+          <Value>val2</Value>
+        </Tag>
+      </TagSet>
+    </Tagging>
+    """
+    assert {:ok, %{body: body}} = ExAws.S3.Parsers.parse_object_tagging({:ok, %{body: response}})
+    assert body == %{tags: [%{key: "tag1", value: "val1"}, %{key: "tag2", value: "val2"}]}
+  end
 end
