@@ -589,10 +589,6 @@ defmodule ExAws.S3 do
       _ -> %{}
     end
 
-    params = case Map.fetch(opts, :part_number) do
-      {:ok, part_number}  -> Map.merge(params, %{"partNumber" => part_number})
-      _                   -> params
-    end
     request(:head, bucket, object, headers: headers, params: params)
   end
 
