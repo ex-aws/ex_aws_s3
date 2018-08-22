@@ -96,6 +96,20 @@ if Code.ensure_loaded?(SweetXml) do
 
     def parse_list_parts(val), do: val
 
+    def parse_tags({:ok, %{body: xml} = resp}) do
+      tags =
+        xml
+        |> SweetXml.xpath(~x"//Tagging/TagSet/Tag"l)
+        |> Enum.map(fn node ->
+          key = SweetXml.xpath(node, ~x"./Key/text()"s)
+          value = SweetXml.xpath(node, ~x"./Value/text()"s)
+          {key, value}
+        end)
+        |> Enum.into(%{})
+
+      {:ok, %{resp | body: tags}}
+    end
+
   end
 else
   defmodule ExAws.S3.Parsers do
@@ -108,6 +122,7 @@ else
     def parse_complete_multipart_upload(_val), do: missing_xml_parser()
     def parse_list_multipart_uploads(_val), do: missing_xml_parser()
     def parse_list_parts(_val), do: missing_xml_parser()
+    def parse_tags(_val), do: missing_xml_parser()
   end
 
 end

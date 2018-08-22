@@ -97,4 +97,25 @@ defmodule ExAws.S3.ParserTest do
     assert "abcd" == key
     assert "bUCMhxUCGCA0GiTAhTj6cq2rChItfIMYBgO7To9yiuUyDk4CWqhtHPx8cGkgjzyavE2aW6HvhQgu9pvDB3.oX73RC7N3zM9dSU3mecTndVRHQLJCAsySsT6lXRd2Id2a" == upload_id
   end
+
+  test "#parse_tags parses response" do
+    response = """
+    <Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <TagSet>
+          <Tag>
+            <Key>tag1</Key>
+            <Value>val1</Value>
+          </Tag>
+          <Tag>
+            <Key>tag2</Key>
+            <Value>val2</Value>
+          </Tag>
+      </TagSet>
+    </Tagging>
+    """
+    expected_result = {:ok, %{body: %{"tag1" => "val1", "tag2" => "val2"}}}
+
+    result = ExAws.S3.Parsers.parse_tags({:ok, %{body: response}})
+    assert expected_result == result
+  end
 end

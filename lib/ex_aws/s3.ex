@@ -549,6 +549,42 @@ defmodule ExAws.S3 do
     request(:get, bucket, object, resource: "torrent")
   end
 
+  @doc "Get object tags"
+  @spec get_object_tagging(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
+  def get_object_tagging(bucket, object) do
+    request(:get, bucket, object, [resource: "tagging"], %{parser: &Parsers.parse_tags/1})
+  end
+
+  @doc "Set object tags"
+  @spec put_object_tagging(bucket :: binary, object :: binary, tags :: map) :: ExAws.Operation.S3.t
+  def put_object_tagging(bucket, object, tags) do
+    xml_tags =
+      tags
+      |> Enum.map(fn {key, value} -> [
+        "<Tag>",
+          "<Key>#{key}</Key>",
+          "<Value>#{value}</Value>",
+        "</Tag>"
+      ] end)
+
+    body = [
+      "<Tagging>",
+        "<TagSet>",
+          xml_tags,
+        "</TagSet>",
+      "</Tagging>"
+    ]
+    |> IO.iodata_to_binary()
+
+    request(:put, bucket, object, resource: "tagging", body: body)
+  end
+
+  @doc "Delete object tags"
+  @spec delete_object_tagging(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
+  def delete_object_tagging(bucket, object) do
+    request(:delete, bucket, object, resource: "tagging")
+  end
+
   @type head_object_opt ::
     {:encryption, customer_encryption_opts}
     | {:range, binary}
