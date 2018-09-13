@@ -421,13 +421,19 @@ defmodule ExAws.S3 do
   requests deleting 1000 objects at a time until all are deleted.
 
   Can be streamed.
+  
+  ## Example
+  ```
+  stream = ExAws.S3.list_objects(bucket(), prefix: "some/prefix") |> ExAws.stream!() |> Stream.map(& &1.key)
+  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request() 
+  ```
   """
   @spec delete_all_objects(
     bucket  :: binary,
-    objects :: [binary | {binary, binary}, ...]):: ExAws.Operation.S3DeleteAllObjects.t
+    objects :: [binary | {binary, binary}, ...] | Enum.t):: ExAws.Operation.S3DeleteAllObjects.t
   @spec delete_all_objects(
     bucket  :: binary,
-    objects :: [binary | {binary, binary}, ...], opts :: [quiet: true]):: ExAws.Operation.S3DeleteAllObjects.t
+    objects :: [binary | {binary, binary}, ...] | Enum.t, opts :: [quiet: true]):: ExAws.Operation.S3DeleteAllObjects.t
   def delete_all_objects(bucket, objects, opts \\ []) do
     %ExAws.Operation.S3DeleteAllObjects{bucket: bucket, objects: objects, opts: opts}
   end
