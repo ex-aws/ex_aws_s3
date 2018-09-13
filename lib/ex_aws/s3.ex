@@ -430,10 +430,10 @@ defmodule ExAws.S3 do
   """
   @spec delete_all_objects(
     bucket  :: binary,
-    objects :: [binary | {binary, binary}, ...] | Enum.t):: ExAws.Operation.S3DeleteAllObjects.t
+    objects :: [binary | {binary, binary}, ...] | Enumerable.t):: ExAws.Operation.S3DeleteAllObjects.t
   @spec delete_all_objects(
     bucket  :: binary,
-    objects :: [binary | {binary, binary}, ...] | Enum.t, opts :: [quiet: true]):: ExAws.Operation.S3DeleteAllObjects.t
+    objects :: [binary | {binary, binary}, ...] | Enumerable.t, opts :: [quiet: true]):: ExAws.Operation.S3DeleteAllObjects.t
   def delete_all_objects(bucket, objects, opts \\ []) do
     %ExAws.Operation.S3DeleteAllObjects{bucket: bucket, objects: objects, opts: opts}
   end
