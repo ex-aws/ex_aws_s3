@@ -494,6 +494,18 @@ defmodule ExAws.S3 do
       bucket: bucket,
       path: path,
       dest: dest,
+      object: nil,
+      opts: opts
+    }
+  end
+
+  @spec download_file(bucket :: binary, path :: binary, dest :: binary, object :: map, opts :: download_file_opts) :: __MODULE__.Download.t
+  def download_file(bucket, path, dest, object, opts) do
+    %__MODULE__.Download{
+      bucket: bucket,
+      path: path,
+      dest: dest,
+      object: object,
       opts: opts
     }
   end
@@ -583,6 +595,7 @@ defmodule ExAws.S3 do
       {:ok, id} -> %{"versionId" => id}
       _ -> %{}
     end
+
     request(:head, bucket, object, headers: headers, params: params)
   end
 
@@ -639,6 +652,9 @@ defmodule ExAws.S3 do
     | {:content_type, binary}
     | {:expect, binary}
     | {:expires, binary}
+    | {:if_none_match, binary}
+    | {:if_modified_since, binary}
+    | {:if_unmodified_since, binary}
     | {:storage_class, :standard | :redunced_redundancy}
     | {:website_redirect_location, binary}
     | {:encryption, encryption_opts}

@@ -1,6 +1,9 @@
 # ExAws.S3
-
 Service module for https://github.com/ex-aws/ex_aws
+
+## IMPORTANT NOTE
+This is a slightly modified fork of [https://github.com/ex-aws/ex_aws_s3].
+Once [the relevant Pull Request](https://github.com/ex-aws/ex_aws_s3/pull/16) is merged in, this will be deleted.
 
 ## Installation
 
