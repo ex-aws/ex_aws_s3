@@ -1,4 +1,6 @@
 defmodule ExAws.Operation.S3DeleteAllObjects do
+  @moduledoc false
+  
   defstruct [
     bucket: nil,
     objects: [],
