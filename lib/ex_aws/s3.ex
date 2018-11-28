@@ -315,7 +315,7 @@ defmodule ExAws.S3 do
   end
 
   @doc "Update or create a bucket policy configuration"
-  @spec put_bucket_policy(bucket :: binary, policy :: map()) :: ExAws.Operation.S3.t
+  @spec put_bucket_policy(bucket :: binary, policy :: String.t) :: ExAws.Operation.S3.t
   def put_bucket_policy(bucket, policy) do
     request(:put, bucket, "/", resource: "policy", body: policy)
   end
