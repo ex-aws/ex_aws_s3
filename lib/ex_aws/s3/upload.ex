@@ -71,6 +71,22 @@ defmodule ExAws.S3.Upload do
 
     {i, etag}
   end
+
+  @spec upload_chunk({binary, pos_integer}, t, ExAws.Config.t) :: {pos_integer, binary}
+  def upload_chunk({chunk, i}, op, config) do
+    case ExAws.S3.upload_part(op.bucket, op.path, op.upload_id, i, chunk, op.opts)
+         |> ExAws.request(config) do
+
+        {:ok, %{headers: headers}} ->
+              {_, etag} = Enum.find(headers, fn {k, _v} ->
+                String.downcase(k) == "etag"
+              end)
+
+              {i, etag}
+
+        {:error, reason} -> {:error, reason}
+    end
+  end
 end
 
 defimpl ExAws.Operation, for: ExAws.S3.Upload do
@@ -79,15 +95,22 @@ defimpl ExAws.Operation, for: ExAws.S3.Upload do
 
   def perform(op, config) do
     with {:ok, op} <- Upload.initialize(op, config) do
-      op.src
-      |> Stream.with_index(1)
-      |> Task.async_stream(Upload, :upload_chunk!, [Map.delete(op, :src), config],
-        max_concurrency: Keyword.get(op.opts, :max_concurrency, 4),
-        timeout: Keyword.get(op.opts, :timeout, 30_000)
-      )
-      |> Enum.to_list
-      |> Enum.map(fn {:ok, val} -> val end)
-      |> Upload.complete(op, config)
+      vals = op.src
+                |> Stream.with_index(1)
+                |> Task.async_stream(Upload, :upload_chunk, [Map.delete(op, :src), config],
+                  max_concurrency: Keyword.get(op.opts, :max_concurrency, 4),
+                  timeout: Keyword.get(op.opts, :timeout, 30_000)
+                )
+                |> Enum.to_list
+                |> Enum.map(fn {:ok, val} -> val end)
+
+      case vals |> Enum.find(fn {:error, _} -> true; _ -> false end) do
+        nil ->
+          vals
+          |> Upload.complete(op, config)
+
+        error -> error
+      end
     end
   end
 
