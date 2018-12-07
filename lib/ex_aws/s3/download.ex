@@ -51,7 +51,7 @@ defmodule ExAws.S3.Download do
     %{headers: headers} = ExAws.S3.head_object(bucket, path) |> ExAws.request!(config)
 
     headers
-    |> List.keyfind("Content-Length", 0, nil)
+    |> Enum.find(fn {key, _value} -> key === "content-length" or key === "Content-Length" end)
     |> elem(1)
     |> String.to_integer
   end
