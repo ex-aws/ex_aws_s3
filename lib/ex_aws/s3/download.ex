@@ -62,22 +62,34 @@ defimpl ExAws.Operation, for: ExAws.S3.Download do
   alias ExAws.S3.Download
 
   def perform(op, config) do
-    file = File.open!(op.dest, [:write, :delayed_write, :binary])
+    op.dest
+    |> File.open([:write, :delayed_write, :binary])
+    |> download_to(op, config)
+  end
 
-    op
-    |> Download.build_chunk_stream(config)
-    |> Task.async_stream(fn boundaries ->
-      chunk = Download.get_chunk(op, boundaries, config)
-      :ok = :file.pwrite(file, [chunk])
-    end,
-      max_concurrency: Keyword.get(op.opts, :max_concurrency, 8),
-      timeout: Keyword.get(op.opts, :timeout, 60_000)
-    )
-    |> Stream.run
+  defp download_to({:error, e}, _op, _config), do: {:error, e}
+  defp download_to({:ok, file}, op, config) do
+    try do
+      op
+      |> Download.build_chunk_stream(config)
+      |> Task.async_stream(fn boundaries ->
+        chunk = Download.get_chunk(op, boundaries, config)
+        :ok = :file.pwrite(file, [chunk])
+      end,
+        max_concurrency: Keyword.get(op.opts, :max_concurrency, 8),
+        timeout: Keyword.get(op.opts, :timeout, 60_000)
+      )
+      |> Stream.run
 
-    File.close(file)
+      File.close(file)
 
-    {:ok, :done}
+      {:ok, :done}
+    rescue
+      _ ->
+        File.close(file)
+        File.rm(op.dest)
+        {:error, "error downloading file"}
+    end
   end
 
   def stream!(_op, _config) do
