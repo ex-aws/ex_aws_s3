@@ -97,4 +97,40 @@ defmodule ExAws.S3.ParserTest do
     assert "abcd" == key
     assert "bUCMhxUCGCA0GiTAhTj6cq2rChItfIMYBgO7To9yiuUyDk4CWqhtHPx8cGkgjzyavE2aW6HvhQgu9pvDB3.oX73RC7N3zM9dSU3mecTndVRHQLJCAsySsT6lXRd2Id2a" == upload_id
   end
+
+  test "#parse_upload_part_copy parses response" do
+    parse_upload_part_copy_response = """
+    <CopyPartResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <LastModified>2019-02-09T06:27:26.000Z</LastModified>
+      <ETag>&quot;7cbef1ad67ecd0d9ba35af98d3de5a94&quot;</ETag>
+    </CopyPartResult>
+    """
+
+    result = ExAws.S3.Parsers.parse_upload_part_copy({:ok, %{body: parse_upload_part_copy_response}})
+    {:ok, %{body: %{last_modified: last_modified, etag: etag}}} = result
+
+    assert "2019-02-09T06:27:26.000Z" == last_modified
+    assert "\"7cbef1ad67ecd0d9ba35af98d3de5a94\"" == etag
+  end
+
+  test "#parse_complete_multipart_upload parses response" do
+    complete_multipart_upload_response = """
+    <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <Location>https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4</Location>
+      <Bucket>my-bucket</Bucket>
+      <Key>tmp-copy3.mp4</Key>
+      <ETag>&quot;17fbc0a106abbb6f381aac6e331f2a19-1&quot;</ETag>
+    </CompleteMultipartUploadResult>
+    """
+
+    result = ExAws.S3.Parsers.parse_complete_multipart_upload({:ok, %{body: complete_multipart_upload_response}})
+    {:ok, %{body: body}} = result
+
+    assert body == %{
+      location: "https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4",
+      bucket: "my-bucket",
+      key: "tmp-copy3.mp4",
+      etag: "\"17fbc0a106abbb6f381aac6e331f2a19-1\""
+    }
+  end
 end

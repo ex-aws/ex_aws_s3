@@ -779,24 +779,21 @@ defmodule ExAws.S3 do
     | {:source_encryption, customer_encryption_opts}
   ]
 
-  @doc "Upload a part for a multipart copy"
-  @spec upload_part_copy(
-    dest_bucket :: binary,
-    dest_object :: binary,
-    src_bucket  :: binary,
-    src_object  :: binary) :: ExAws.Operation.S3.t
+  @doc "Upload a part for a multipart copy. Note: The :copy_source_range option is required."
   @spec upload_part_copy(
     dest_bucket :: binary,
     dest_object :: binary,
     src_bucket  :: binary,
     src_object  :: binary,
+    upload_id   :: binary,
+    part_number :: pos_integer,
     opts        :: upload_part_copy_opts) :: ExAws.Operation.S3.t
   @amz_headers ~w(
     copy_source_if_modified_since
     copy_source_if_unmodified_since
     copy_source_if_match
     copy_source_if_none_match)a
-  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, opts \\ []) do
+  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, upload_id, part_number, opts \\ []) do
     opts = opts |> Map.new
 
     source_encryption = opts
@@ -822,7 +819,8 @@ defmodule ExAws.S3 do
     end
     |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
 
-    request(:put, dest_bucket, dest_object, [headers: headers], %{parser: &Parsers.parse_upload_part_copy/1})
+    params = %{"uploadId" => upload_id, "partNumber" => part_number}
+    request(:put, dest_bucket, dest_object, [headers: headers, params: params], %{parser: &Parsers.parse_upload_part_copy/1})
   end
 
   @doc "Complete a multipart upload"
