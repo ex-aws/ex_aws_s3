@@ -378,6 +378,13 @@ defmodule ExAws.S3 do
     request(:delete, bucket, object, headers: opts |> Map.new)
   end
 
+  @doc "Remove the entire tag set from the specified object"
+  @spec delete_object_tagging(bucket :: binary, object :: binary, opts :: Keyword.t()) ::
+          ExAws.Operation.S3.t()
+  def delete_object_tagging(bucket, object, opts \\ []) do
+    request(:delete, bucket, object, resource: "tagging", headers: opts |> Map.new())
+  end
+
   @doc """
   Delete multiple objects within a bucket
 
@@ -421,13 +428,19 @@ defmodule ExAws.S3 do
   requests deleting 1000 objects at a time until all are deleted.
 
   Can be streamed.
+  
+  ## Example
+  ```
+  stream = ExAws.S3.list_objects(bucket(), prefix: "some/prefix") |> ExAws.stream!() |> Stream.map(& &1.key)
+  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request() 
+  ```
   """
   @spec delete_all_objects(
     bucket  :: binary,
-    objects :: [binary | {binary, binary}, ...]):: ExAws.Operation.S3DeleteAllObjects.t
+    objects :: [binary | {binary, binary}, ...] | Enumerable.t):: ExAws.Operation.S3DeleteAllObjects.t
   @spec delete_all_objects(
     bucket  :: binary,
-    objects :: [binary | {binary, binary}, ...], opts :: [quiet: true]):: ExAws.Operation.S3DeleteAllObjects.t
+    objects :: [binary | {binary, binary}, ...] | Enumerable.t, opts :: [quiet: true]):: ExAws.Operation.S3DeleteAllObjects.t
   def delete_all_objects(bucket, objects, opts \\ []) do
     %ExAws.Operation.S3DeleteAllObjects{bucket: bucket, objects: objects, opts: opts}
   end
@@ -549,6 +562,15 @@ defmodule ExAws.S3 do
     request(:get, bucket, object, resource: "torrent")
   end
 
+  @doc "Get object tagging"
+  @spec get_object_tagging(bucket :: binary, object :: binary, opts :: Keyword.t()) ::
+          ExAws.Operation.S3.t()
+  def get_object_tagging(bucket, object, opts \\ []) do
+    request(:get, bucket, object, [resource: "tagging", headers: opts |> Map.new()],
+      parser: &ExAws.S3.Parsers.parse_object_tagging/1
+    )
+  end
+
   @type head_object_opt ::
     {:encryption, customer_encryption_opts}
     | {:range, binary}
@@ -651,6 +673,41 @@ defmodule ExAws.S3 do
   def put_object_acl(bucket, object, acl) do
     headers = acl |> Map.new |> format_acl_headers
     request(:put, bucket, object, headers: headers, resource: "acl")
+  end
+
+  @doc "Add a set of tags to an existing object"
+  @spec put_object_tagging(
+          bucket :: binary,
+          object :: binary,
+          tags :: Access.t(),
+          opts :: Keyword.t()
+        ) :: ExAws.Operation.S3.t()
+  def put_object_tagging(bucket, object, tags, opts \\ []) do
+    tags_xml =
+      Enum.map(tags, fn
+        {key, value} ->
+          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+      end)
+
+    body = [
+      ~s(<?xml version="1.0" encoding="UTF-8"?>),
+      "<Tagging>",
+      "<TagSet>",
+      tags_xml,
+      "</TagSet>",
+      "</Tagging>"
+    ]
+
+    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+
+    headers =
+      opts
+      |> Map.new()
+      |> Map.merge(%{"content-md5" => content_md5})
+
+    body_binary = body |> IO.iodata_to_binary()
+
+    request(:put, bucket, object, resource: "tagging", body: body_binary, headers: headers)
   end
 
   @type pub_object_copy_opts :: [
