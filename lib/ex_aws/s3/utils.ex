@@ -147,4 +147,17 @@ defmodule ExAws.S3.Utils do
   def sanitized_port_component(%{port: port}) when port in @excluded_ports, do: ""
   def sanitized_port_component(%{port: port}), do: ":#{port}"
   def sanitized_port_component(_), do: ""
+
+  def to_list_of_maps(map) do
+    map
+    |> Map.to_list()
+    |> Enum.map(fn {k, v} -> %{k => v} end)
+  end
+
+  def timestamp_plus(timestamp, additional) do
+    timestamp
+    |> :calendar.datetime_to_gregorian_seconds()
+    |> Kernel.+(additional)
+    |> :calendar.gregorian_seconds_to_datetime()
+  end
 end

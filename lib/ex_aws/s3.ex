@@ -54,6 +54,7 @@ defmodule ExAws.S3 do
   """
 
   import ExAws.S3.Utils
+  import ExAws.Auth.Utils, only: [amz_date: 1]
   alias ExAws.S3.Parsers
 
   @type acl_opts :: {:acl, canned_acl} | grant
@@ -84,6 +85,11 @@ defmodule ExAws.S3 do
       {:expires_in, integer}
     | {:virtual_host, boolean}
     | {:query_params, [{binary, binary}]}
+  ]
+
+  @type presigned_fields_opts :: [
+      {:expires_in, integer}
+    | {:acl, canned_acl()}
   ]
 
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
@@ -428,11 +434,11 @@ defmodule ExAws.S3 do
   requests deleting 1000 objects at a time until all are deleted.
 
   Can be streamed.
-  
+
   ## Example
   ```
   stream = ExAws.S3.list_objects(bucket(), prefix: "some/prefix") |> ExAws.stream!() |> Stream.map(& &1.key)
-  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request() 
+  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request()
   ```
   """
   @spec delete_all_objects(
@@ -967,5 +973,55 @@ defmodule ExAws.S3 do
       resource: data[:resource] || "",
       params: data[:params] || %{}
     } |> struct(opts)
+  end
+
+  @doc """
+  Generate a map containing pre-signed value for S3 Uploads directly from the browser.
+
+  These fields are based on the [AWS Signature Version 4](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-authentication-HTTPPOST.html)
+
+  Optional paramenters can be added to define the expiration time of the signature (`:expires_in`)
+  and how the object to upload will be publicly accessible or not (`:acl`).
+
+  The default options are `[expires_in: 3600, acl: :private]`
+  """
+  @spec presigned_fields(config:: map(), bucket :: binary, key :: binary, opts :: presigned_fields_opts) :: map()
+  def presigned_fields(config, bucket, key, opts \\ []) do
+    expires_in = Keyword.get(opts, :expires_in, 3600)
+    acl = Keyword.get(opts, :acl, :private)
+    timestamp = :calendar.universal_time()
+
+    fields = %{
+      "key" => key,
+      "acl" => normalize_param(acl),
+      "x-amz-algorithm" => "AWS4-HMAC-SHA256",
+      "x-amz-credential" => ExAws.Auth.Credentials.generate_credential_v4("s3", config, timestamp),
+      "x-amz-date" => amz_date(timestamp)
+    }
+
+    policy = gen_policy(config, fields, timestamp, expires_in, bucket)
+    signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, timestamp, policy)
+
+    fields
+    |> Map.put("policy", policy)
+    |> Map.put("x-amz-signature", signature)
+  end
+
+  defp gen_policy(config, fields, timestamp, expires_in, bucket) do
+    policy_conditions = [%{"bucket" => bucket} | to_list_of_maps(fields)]
+
+    policy_expiration =
+      timestamp_plus(timestamp, expires_in)
+      |> NaiveDateTime.from_erl!()
+      |> NaiveDateTime.to_iso8601
+
+    policy = %{
+      expiration: Enum.join([policy_expiration, "Z"]),
+      conditions: policy_conditions
+    }
+
+    policy
+    |> config.json_codec.encode!()
+    |> Base.encode64()
   end
 end
