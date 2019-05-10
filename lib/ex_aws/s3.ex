@@ -976,6 +976,20 @@ defmodule ExAws.S3 do
   end
 
   @doc """
+  Generate the endpoint url for Browser-Based Uploads.
+  """
+  @spec browser_upload_endpoint(config :: map(), bucket :: binary()) :: binary()
+  def browser_upload_endpoint(config, bucket) do
+    [
+      config.scheme,
+      bucket,
+      ".",
+      config.host
+    ]
+    |> Enum.join()
+  end
+
+  @doc """
   Generate a map containing pre-signed value for S3 Uploads directly from the browser.
 
   These fields are based on the [AWS Signature Version 4](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-authentication-HTTPPOST.html)
@@ -985,7 +999,7 @@ defmodule ExAws.S3 do
 
   The default options are `[expires_in: 3600, acl: :private]`
   """
-  @spec presigned_fields(config:: map(), bucket :: binary, key :: binary, opts :: presigned_fields_opts) :: map()
+  @spec presigned_fields(config :: map(), bucket :: binary, key :: binary, opts :: presigned_fields_opts) :: map()
   def presigned_fields(config, bucket, key, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
     acl = Keyword.get(opts, :acl, :private)
