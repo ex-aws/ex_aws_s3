@@ -286,7 +286,7 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/", body: body, headers: headers)
   end
 
-  @doc "Update or create a bucket bucket access control"
+  @doc "Update or create a bucket access control policy"
   @spec put_bucket_acl(bucket :: binary, opts :: [acl_opts]) :: ExAws.Operation.S3.t
   def put_bucket_acl(bucket, grants) do
     request(:put, bucket, "/", headers: format_acl_headers(grants))
@@ -372,7 +372,7 @@ defmodule ExAws.S3 do
   ## Objects
   ###########
 
-  @doc "Delete object object in bucket"
+  @doc "Delete an object within a bucket"
   @spec delete_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   def delete_object(bucket, object, opts \\ []) do
     request(:delete, bucket, object, headers: opts |> Map.new)
@@ -487,9 +487,9 @@ defmodule ExAws.S3 do
   ]
 
   @doc """
-  Download an S3 Object to a file.
+  Download an S3 object to a file.
 
-  This operation download multiple parts of an S3 object concurrently, allowing
+  This operation downloads multiple parts of an S3 object concurrently, allowing
   you to maximize throughput.
 
   Defaults to a concurrency of 8, chunk size of 1MB, and a timeout of 1 minute.
@@ -580,7 +580,7 @@ defmodule ExAws.S3 do
     | {:if_none_match, binary}
   @type head_object_opts :: [head_object_opt]
 
-  @doc "Determine of an object exists"
+  @doc "Determine if an object exists"
   @spec head_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   @spec head_object(bucket :: binary, object :: binary, opts :: head_object_opts) :: ExAws.Operation.S3.t
   @request_headers [:range, :if_modified_since, :if_unmodified_since, :if_match, :if_none_match]
@@ -668,7 +668,7 @@ defmodule ExAws.S3 do
     request(:put, bucket, object, body: body, headers: put_object_headers(opts))
   end
 
-  @doc "Create or update an object's access control FIXME"
+  @doc "Create or update an object's access control policy"
   @spec put_object_acl(bucket :: binary, object :: binary, acl :: [acl_opts]) :: ExAws.Operation.S3.t
   def put_object_acl(bucket, object, acl) do
     headers = acl |> Map.new |> format_acl_headers
@@ -915,9 +915,9 @@ defmodule ExAws.S3 do
   end
 
   @doc """
-  Generates a pre-signed URL for this object.
+  Generate a pre-signed URL for an object.
 
-  When option param :virtual_host is `true`, the {#bucket} name will be used as
+  When option param `:virtual_host` is `true`, the bucket name will be used as
   the hostname. This will cause the returned URL to be 'http' and not 'https'.
 
   Additional (signed) query parameters can be added to the url by setting option param
