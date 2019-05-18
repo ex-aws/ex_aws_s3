@@ -580,7 +580,7 @@ defmodule ExAws.S3 do
     | {:if_none_match, binary}
   @type head_object_opts :: [head_object_opt]
 
-  @doc "Determine of an object exists"
+  @doc "Determine if an object exists"
   @spec head_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   @spec head_object(bucket :: binary, object :: binary, opts :: head_object_opts) :: ExAws.Operation.S3.t
   @request_headers [:range, :if_modified_since, :if_unmodified_since, :if_match, :if_none_match]
