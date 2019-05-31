@@ -428,11 +428,11 @@ defmodule ExAws.S3 do
   requests deleting 1000 objects at a time until all are deleted.
 
   Can be streamed.
-  
+
   ## Example
   ```
   stream = ExAws.S3.list_objects(bucket(), prefix: "some/prefix") |> ExAws.stream!() |> Stream.map(& &1.key)
-  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request() 
+  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request()
   ```
   """
   @spec delete_all_objects(
@@ -494,8 +494,8 @@ defmodule ExAws.S3 do
 
   Defaults to a concurrency of 8, chunk size of 1MB, and a timeout of 1 minute.
   """
-  @spec download_file(bucket :: binary, path :: binary, dest :: binary) :: __MODULE__.Download.t
-  @spec download_file(bucket :: binary, path :: binary, dest :: binary, opts :: download_file_opts) :: __MODULE__.Download.t
+  @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary) :: __MODULE__.Download.t
+  @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary, opts :: download_file_opts) :: __MODULE__.Download.t
   def download_file(bucket, path, dest, opts \\ []) do
     %__MODULE__.Download{
       bucket: bucket,
