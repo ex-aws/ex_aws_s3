@@ -493,6 +493,50 @@ defmodule ExAws.S3 do
   you to maximize throughput.
 
   Defaults to a concurrency of 8, chunk size of 1MB, and a timeout of 1 minute.
+
+  ### Streaming to memory
+
+  In order to use `ExAws.stream!/2`, the third `dest` parameter must be set to `:memory`.
+  An example would be like the following:
+
+      ExAws.S3.download_file("example-bucket", "path/to/file.txt", :memory)
+      |> ExAws.stream!()
+
+  Note that **this won't start fetching anything immediately** since it returns an Elixir `Stream`.
+
+  #### Streaming by line
+
+  Streaming by line can be done with `Stream.chunk_while/4`. Here is an example:
+
+      # Returns a stream which grabs chunks of data from S3 as specified in `opts`
+      # but processes the stream line by line. For example, the default chunk
+      # size of 1MB means requests for bytes from S3 will ask for 1MB sizes (to be downloaded)
+      # however each element of the stream will be a single line.
+      def generate_stream(bucket, file, opts \\\\ []) do
+        bucket
+        |> ExAws.S3.download_file(file, :memory, opts)
+        |> ExAws.stream!()
+        # Uncomment if you need to gunzip (and add dependency :stream_gzip)
+        # |> StreamGzip.gunzip()
+        |> Stream.chunk_while("", &chunk_fun/2, &after_fun/1)
+      end
+
+      def chunk_fun(chunk, acc) do
+        split_chunk(acc, chunk) || split_chunk(chunk, "")
+      end
+
+      defp split_chunk("", _append_remaining), do: nil
+      defp split_chunk(string, append_remaining) do
+        case String.split(string, "\\n", parts: 2) do
+          [l] ->
+            {:cont, l}
+          [l, remaining] ->
+            {:cont, l, remaining <> append_remaining}
+        end
+      end
+
+      def after_fun(""), do: {:cont, ""}
+      def after_fun(acc), do: {:cont, acc, ""}
   """
   @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary) :: __MODULE__.Download.t
   @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary, opts :: download_file_opts) :: __MODULE__.Download.t
