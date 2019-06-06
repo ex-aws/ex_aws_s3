@@ -498,8 +498,8 @@ defmodule ExAws.S3 do
   @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary, opts :: download_file_opts) :: __MODULE__.Download.t
   def download_file(bucket, path, dest, opts \\ []) do
     %__MODULE__.Download{
-      bucket: bucket,
-      path: path,
+      bucket: String.trim_trailing(bucket, "/"),
+      path: String.trim_leading(path, "/"),
       dest: dest,
       opts: opts
     }
