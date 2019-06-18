@@ -83,6 +83,7 @@ defmodule ExAws.S3 do
   @type presigned_url_opts :: [
       {:expires_in, integer}
     | {:virtual_host, boolean}
+    | {:s3_accelerate, boolean}
     | {:query_params, [{binary, binary}]}
   ]
 
@@ -920,6 +921,9 @@ defmodule ExAws.S3 do
   When option param `:virtual_host` is `true`, the bucket name will be used as
   the hostname. This will cause the returned URL to be 'http' and not 'https'.
 
+  When option param `:s3_accelerate` is `true`, the bucket name will be used as
+  the hostname, along with the `s3-accelerate.amazonaws.com` host.
+
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
   a multipart upload directly from the browser.
@@ -928,8 +932,15 @@ defmodule ExAws.S3 do
   @one_week 60 * 60 * 24 * 7
   def presigned_url(config, http_method, bucket, object, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
-    virtual_host = Keyword.get(opts, :virtual_host, false)
     query_params = Keyword.get(opts, :query_params, [])
+    virtual_host = Keyword.get(opts, :virtual_host, false)
+    s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
+
+    {config, virtual_host} =
+      if s3_accelerate,
+        do: {put_accelerate_host(config), true},
+        else: {config, virtual_host}
+
     case expires_in > @one_week do
       true -> {:error, "expires_in_exceeds_one_week"}
       false ->
@@ -967,5 +978,9 @@ defmodule ExAws.S3 do
       resource: data[:resource] || "",
       params: data[:params] || %{}
     } |> struct(opts)
+  end
+
+  defp put_accelerate_host(config) do
+    Map.put(config, :host, "s3-accelerate.amazonaws.com")
   end
 end
