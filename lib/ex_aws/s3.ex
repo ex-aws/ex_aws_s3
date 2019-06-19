@@ -999,8 +999,8 @@ defmodule ExAws.S3 do
 
   The default options are `[expires_in: 3600, acl: :private]`
   """
-  @spec presigned_fields(config :: map(), bucket :: binary, key :: binary, opts :: presigned_fields_opts) :: map()
-  def presigned_fields(config, bucket, key, opts \\ []) do
+  @spec presigned_fields(config :: map(), bucket :: binary, key :: binary, mimetype :: binary, opts :: presigned_fields_opts) :: map()
+  def presigned_fields(config, bucket, key, mimetype, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
     acl = Keyword.get(opts, :acl, :private)
     timestamp = :calendar.universal_time()
@@ -1008,6 +1008,7 @@ defmodule ExAws.S3 do
     fields = %{
       "key" => key,
       "acl" => normalize_param(acl),
+      "Content-Type" => mimetype,
       "x-amz-algorithm" => "AWS4-HMAC-SHA256",
       "x-amz-credential" => ExAws.Auth.Credentials.generate_credential_v4("s3", config, timestamp),
       "x-amz-date" => amz_date(timestamp)
