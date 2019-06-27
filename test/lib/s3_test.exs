@@ -23,6 +23,32 @@ defmodule ExAws.S3Test do
     assert http_method == :get
   end
 
+  test "#list_objects_v2" do
+    res =
+      S3.list_objects_v2(
+        "bucket",
+        headers: %{"x-amz-request-payer" => "requester"},
+        prefix: "/path/to/objs",
+        start_after: "/path/to/objs/sub",
+      )
+
+    %Operation.S3{
+      headers: headers,
+      params: params,
+      bucket: bucket,
+      http_method: http_method
+    } = res
+
+    assert headers == %{"x-amz-request-payer" => "requester"}
+    assert params == %{
+      "prefix" => "/path/to/objs",
+      "start-after" => "/path/to/objs/sub",
+      "list-type" => 2
+    }
+    assert bucket == "bucket"
+    assert http_method == :get
+  end
+
   test "#get_object" do
     expected = %Operation.S3{
       bucket: "bucket",
