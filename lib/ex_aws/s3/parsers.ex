@@ -110,6 +110,48 @@ if Code.ensure_loaded?(SweetXml) do
     end
 
     def parse_object_tagging(val), do: val
+
+    def parse_bucket_object_versions({:ok, resp = %{body: xml}}) do
+      parsed_body =
+        SweetXml.xpath(xml, ~x"//ListVersionsResult",
+          name: ~x"./Name/text()"s,
+          prefix: ~x"./Prefix/text()"s,
+          max_keys: ~x"./MaxKeys/text()"s,
+          key_marker: ~x"./KeyMarker/text()"s,
+          next_key_marker: ~x"./NextKeyMarker/text()"s,
+          version_id_marker: ~x"./VersionIdMarker/text()"s,
+          next_version_id_marker: ~x"./NextVersionIdMarker/text()"s,
+          is_truncated: ~x"./IsTruncated/text()"s,
+          versions: [
+            ~x"./Version"l,
+            key: ~x"./Key/text()"s,
+            version_id: ~x"./VersionId/text()"s,
+            etag: ~x"./ETag/text()"s,
+            is_latest: ~x"./IsLatest/text()"s,
+            last_modified: ~x"./LastModified/text()"s,
+            size: ~x"./Size/text()"s,
+            owner: [
+              ~x"./Owner"e,
+              display_name: ~x"./DisplayName/text()"s,
+              id: ~x"./ID/text()"s
+            ]
+          ],
+          delete_markers: [
+            ~x"./DeleteMarker"l,
+            key: ~x"./Key/text()"s,
+            version_id: ~x"./VersionId/text()"s,
+            is_latest: ~x"./IsLatest/text()"s,
+            last_modified: ~x"./LastModified/text()"s,
+            owner: [
+              ~x"./Owner"e,
+              display_name: ~x"./DisplayName/text()"s,
+              id: ~x"./ID/text()"s
+            ]
+          ]
+        )
+
+      {:ok, %{resp | body: parsed_body}}
+    end
   end
 else
   defmodule ExAws.S3.Parsers do

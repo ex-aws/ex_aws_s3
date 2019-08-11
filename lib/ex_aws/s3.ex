@@ -276,7 +276,7 @@ defmodule ExAws.S3 do
   @spec get_bucket_object_versions(bucket :: binary) :: ExAws.Operation.S3.t
   @spec get_bucket_object_versions(bucket :: binary, opts :: Keyword.t) :: ExAws.Operation.S3.t
   def get_bucket_object_versions(bucket, opts \\ []) do
-    request(:get, bucket, "/", resource: "versions", params: opts)
+    request(:get, bucket, "/", [resource: "versions", params: opts], parser: &ExAws.S3.Parsers.parse_bucket_object_versions/1)
   end
 
   @doc "Get bucket payment configuration"
