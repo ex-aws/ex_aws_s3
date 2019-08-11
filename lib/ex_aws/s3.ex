@@ -293,7 +293,7 @@ defmodule ExAws.S3 do
   end
 
   @doc "Update or create a bucket CORS policy"
-  @spec put_bucket_cors(bucket :: binary, cors_config :: map()) :: ExAws.Operation.S3.t
+  @spec put_bucket_cors(bucket :: binary, cors_config :: list(map())) :: ExAws.Operation.S3.t
   def put_bucket_cors(bucket, cors_rules) do
     rules = cors_rules
     |> Enum.map(&build_cors_rule/1)
