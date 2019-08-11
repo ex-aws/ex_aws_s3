@@ -21,6 +21,8 @@ if Code.ensure_loaded?(SweetXml) do
         is_truncated: ~x"./IsTruncated/text()"s,
         prefix: ~x"./Prefix/text()"s,
         marker: ~x"./Marker/text()"s,
+        next_continuation_token: ~x"./NextContinuationToken/text()"s,
+        key_count: ~x"./KeyCount/text()"s,
         max_keys: ~x"./MaxKeys/text()"s,
         next_marker: ~x"./NextMarker/text()"s,
         contents: [

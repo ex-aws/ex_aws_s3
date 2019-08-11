@@ -171,6 +171,46 @@ defmodule ExAws.S3 do
   def list_objects(bucket, opts \\ []) do
     params = opts
     |> format_and_take(@params)
+    
+    request(:get, bucket, "/", [params: params, headers: opts[:headers]],
+      stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
+      parser: &ExAws.S3.Parsers.parse_list_objects/1
+    )
+  end
+
+  @type list_objects_v2_opts :: [
+    {:delimiter, binary} |
+    {:prefix, binary} |
+    {:encoding_type, binary} |
+    {:max_keys, 0..1000} |
+    {:stream_prefixes, boolean} |
+    {:continuation_token, binary} |
+    {:fetch_owner, boolean} |
+    {:start_after, binary}
+  ]
+
+  @doc """
+  List objects in bucket
+
+  Can be streamed.
+
+  ## Examples
+  ```
+  S3.list_objects_v2("my-bucket") |> ExAws.request
+
+  S3.list_objects_v2("my-bucket") |> ExAws.stream!
+  S3.list_objects_v2("my-bucket", delimiter: "/", prefix: "backup") |> ExAws.stream!
+  S3.list_objects_v2("my-bucket", prefix: "some/inner/location/path") |> ExAws.stream!
+  S3.list_objects_v2("my-bucket", max_keys: 5, encoding_type: "url") |> ExAws.stream!
+  ```
+  """
+  @spec list_objects_v2(bucket :: binary) :: ExAws.Operation.S3.t
+  @spec list_objects_v2(bucket :: binary, opts :: list_objects_v2_opts) :: ExAws.Operation.S3.t
+  @params [:delimiter, :prefix, :encoding_type, :max_keys, :continuation_token, :fetch_owner, :start_after]
+  def list_objects_v2(bucket, opts \\ []) do
+    params = opts
+    |> format_and_take(@params)
+    |> Map.put("list-type", 2)
 
     request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
