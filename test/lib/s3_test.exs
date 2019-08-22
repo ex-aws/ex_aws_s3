@@ -305,6 +305,26 @@ defmodule ExAws.S3Test do
     assert_pre_signed_url(url, "https://bucket.s3.amazonaws.com/foo.txt", "100")
   end
 
+  test "#presigned_url passing s3_accelerate=false option" do
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", s3_accelerate: false)
+    assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo.txt", "3600")
+  end
+
+  test "#presigned_url passing s3_accelerate=true option" do
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", s3_accelerate: true)
+    assert_pre_signed_url(url, "https://bucket.s3-accelerate.amazonaws.com/foo.txt", "3600")
+  end
+
+  test "#presigned_url passing both virtual_host and s3_accelerate options" do
+    opts = [virtual_host: false, s3_accelerate: true]
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", opts)
+    assert_pre_signed_url(url, "https://bucket.s3-accelerate.amazonaws.com/foo.txt", "3600")
+
+    opts = [virtual_host: true, s3_accelerate: false]
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", opts)
+    assert_pre_signed_url(url, "https://bucket.s3.amazonaws.com/foo.txt", "3600")
+  end
+
   test "#presigned_url passing query_params option" do
     query_params = [
       key_one: "value_one",
