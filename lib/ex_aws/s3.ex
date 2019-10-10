@@ -51,6 +51,20 @@ defmodule ExAws.S3 do
   |> Task.async_stream(upload_file, max_concurrency: 10)
   |> Stream.run
   ```
+
+  ## Configuration
+
+  The `scheme`, `host`, and `port` can be configured to hit alternate endpoints.
+
+  For example, this is how to use a local minio instance:
+
+  ```
+  # config.exs
+  config :ex_aws, :s3,
+    scheme: "http://",
+    host: "localhost",
+    port: 9000
+  ```
   """
 
   import ExAws.S3.Utils
