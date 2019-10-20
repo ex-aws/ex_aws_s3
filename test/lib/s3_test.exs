@@ -183,13 +183,25 @@ defmodule ExAws.S3Test do
   test "#put_object_copy utf8" do
     expected = %Operation.S3{
       bucket: "dest-bucket",
-      headers: %{"x-amz-copy-source" => "/src-bucket//foo/%C3%BC.txt"},
+      headers: %{"x-amz-copy-source" => "/src-bucket/foo/%C3%BC.txt"},
       path: "dest-object",
       http_method: :put
     }
 
     assert expected ==
              S3.put_object_copy("dest-bucket", "dest-object", "src-bucket", "/foo/ü.txt")
+  end
+
+  test "#put_object_copy encoding" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{"x-amz-copy-source" => "/src-bucket/foo/hello%2Bfriend.txt"},
+      path: "dest-object",
+      http_method: :put
+    }
+
+    assert expected ==
+             S3.put_object_copy("dest-bucket", "dest-object", "src-bucket", "/foo/hello+friend.txt")
   end
 
   test "#complete_multipart_upload" do
