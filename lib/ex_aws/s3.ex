@@ -99,6 +99,7 @@ defmodule ExAws.S3 do
     | {:virtual_host, boolean}
     | {:s3_accelerate, boolean}
     | {:query_params, [{binary, binary}]}
+    | {:headers, [{binary, binary}]}
   ]
 
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
@@ -186,7 +187,7 @@ defmodule ExAws.S3 do
   def list_objects(bucket, opts \\ []) do
     params = opts
     |> format_and_take(@params)
-    
+
     request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
@@ -981,6 +982,9 @@ defmodule ExAws.S3 do
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
   a multipart upload directly from the browser.
+
+  Signed headers can be added to the url by setting option param `:headers` to
+  a list of `{"key", "value"}` pairs.
   """
   @spec presigned_url(config :: map, http_method :: atom, bucket :: binary, object :: binary, opts :: presigned_url_opts) :: {:ok, binary} | {:error, binary}
   @one_week 60 * 60 * 24 * 7
@@ -989,6 +993,7 @@ defmodule ExAws.S3 do
     query_params = Keyword.get(opts, :query_params, [])
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
+    headers = Keyword.get(opts, :headers, [])
 
     {config, virtual_host} =
       if s3_accelerate,
@@ -1000,7 +1005,7 @@ defmodule ExAws.S3 do
       false ->
         url = url_to_sign(bucket, object, config, virtual_host)
         datetime = :calendar.universal_time
-        ExAws.Auth.presigned_url(http_method, url, :s3, datetime, config, expires_in, query_params)
+        ExAws.Auth.presigned_url(http_method, url, :s3, datetime, config, expires_in, query_params, nil, headers)
     end
   end
 
