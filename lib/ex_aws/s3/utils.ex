@@ -111,6 +111,7 @@ defmodule ExAws.S3.Utils do
     |> IO.iodata_to_binary
   end
 
+  def normalize_param(:version_id), do: "versionId"
   def normalize_param(param) when is_atom(param) do
     param
     |> Atom.to_string

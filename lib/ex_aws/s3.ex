@@ -186,7 +186,7 @@ defmodule ExAws.S3 do
   def list_objects(bucket, opts \\ []) do
     params = opts
     |> format_and_take(@params)
-    
+
     request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
@@ -509,9 +509,18 @@ defmodule ExAws.S3 do
   ]
   @type get_object_opts :: [
     {:response, get_object_response_opts}
+    | {:version_id, binary}
     | head_object_opt
   ]
-  @doc "Get an object from a bucket"
+  @doc """
+  Get an object from a bucket
+
+  ## Examples
+  ```
+  S3.get_object("my-bucket", "image.png")
+  S3.get_object("my-bucket", "image.png", version_id: "ae57ekgXPpdiVZLkYVWoTAGRhGJ5swt9")
+  ```
+  """
   @spec get_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   @spec get_object(bucket :: binary, object :: binary, opts :: get_object_opts) :: ExAws.Operation.S3.t
   @response_params [:content_type, :content_language, :expires, :cache_control, :content_disposition, :content_encoding]
@@ -524,6 +533,10 @@ defmodule ExAws.S3 do
     |> format_and_take(@response_params)
     |> namespace("response")
 
+    params = opts
+    |> format_and_take([:version_id])
+    |> Map.merge(response_opts)
+
     headers = opts
     |> format_and_take(@request_headers)
 
@@ -532,7 +545,7 @@ defmodule ExAws.S3 do
     |> build_encryption_headers
     |> Map.merge(headers)
 
-    request(:get, bucket, object, headers: headers, params: response_opts)
+    request(:get, bucket, object, headers: headers, params: params)
   end
 
   @type download_file_opts :: [
