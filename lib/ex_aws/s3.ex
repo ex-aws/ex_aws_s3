@@ -663,10 +663,7 @@ defmodule ExAws.S3 do
     |> build_encryption_headers
     |> Map.merge(headers)
 
-    params = case Map.fetch(opts, :version_id) do
-      {:ok, id} -> %{"versionId" => id}
-      _ -> %{}
-    end
+    params = format_and_take(opts, [:version_id])
     request(:head, bucket, object, headers: headers, params: params)
   end
 
@@ -702,10 +699,7 @@ defmodule ExAws.S3 do
     number_of_days :: pos_integer,
     opts           :: [version_id: binary]) :: ExAws.Operation.S3.t
   def post_object_restore(bucket, object, number_of_days, opts \\ []) do
-    params = case Keyword.fetch(opts, :version_id) do
-      {:ok, id} -> %{"versionId" => id}
-      _ -> %{}
-    end
+    params = format_and_take(opts, [:version_id])
 
     body = """
     <RestoreRequest xmlns="http://s3.amazonaws.com/doc/2006-3-01">
