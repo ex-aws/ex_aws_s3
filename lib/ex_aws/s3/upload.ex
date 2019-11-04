@@ -1,6 +1,8 @@
 defmodule ExAws.S3.Upload do
   @moduledoc """
-  Represents an AWS S3 Multipart Upload operation
+  Represents an AWS S3 Multipart Upload operation.
+
+  Implements `ExAws.Operation.perform/2`
 
   ## Examples
   ```
@@ -9,6 +11,8 @@ defmodule ExAws.S3.Upload do
   |> S3.upload("my-bucket", "path/on/s3")
   |> ExAws.request! #=> :done
   ```
+
+  See `ExAws.S3.upload/4` for options
   """
 
   @enforce_keys ~w(bucket path src)a

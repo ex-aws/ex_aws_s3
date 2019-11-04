@@ -26,6 +26,7 @@ defmodule ExAws.S3 do
   |> S3.upload("my-bucket", "path/on/s3")
   |> ExAws.request #=> {:ok, :done}
   ```
+  See `ExAws.S3.upload/4` for options
 
   Download large file to disk
   ```
@@ -582,9 +583,9 @@ defmodule ExAws.S3 do
   ## Options
 
   These options are specific to this function
-
-  * `:max_concurrency` -- The number of concurrent processes reading from this
-     stream. Only applies when uploading a stream.
+  * See `Task.async_stream/5`'s `:max_concurrency` and `:timeout` options.
+    * `:max_concurrency` - only applies when uploading a stream. Sets the maximum number of tasks to run at the same time. Defaults to `4`
+    * `:timeout` - the maximum amount of time (in milliseconds) each task is allowed to execute for. Defaults to `30_000`.
 
   All other options (ex. `:content_type`) are passed through to
   `ExAws.S3.initiate_multipart_upload/3`.
