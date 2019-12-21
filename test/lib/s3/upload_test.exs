@@ -7,6 +7,23 @@ defmodule ExAws.S3.UploadTest do
   describe "integration test" do
     setup [:start_bypass]
 
+    test "uploading a binary from memory with a stream", %{bypass: bypass} do
+      file_path = __ENV__.file
+
+      setup_multipart_upload_backend(bypass, self(), "my-bucket", "test.txt")
+
+      {:ok, _} =
+        file_path
+        |> File.read!()
+        |> S3.Upload.stream_bytes()
+        |> S3.upload("my-bucket", "test.txt")
+        |> ExAws.request(exaws_config_for_bypass(bypass))
+
+      assert_received :initiated_upload
+      assert_received :chunk_uploaded
+      assert_received :completed_upload
+    end
+
     test "uploading a file with a stream", %{bypass: bypass} do
       file_path = __ENV__.file
 

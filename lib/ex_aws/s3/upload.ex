@@ -8,9 +8,15 @@ defmodule ExAws.S3.Upload do
   |> S3.Upload.stream_file
   |> S3.upload("my-bucket", "path/on/s3")
   |> ExAws.request! #=> :done
+
+  File.read!("path/to/big/file")
+  |> S3.Upload.stream_bytes
+  |> S3.upload("my-bucket", "path/on/s3")
+  |> ExAws.request! #=> :done
   ```
   """
 
+  @default_chunk_size 5 * 1024 * 1024
   @enforce_keys ~w(bucket path src)a
   defstruct [
     :src,
@@ -50,6 +56,18 @@ defmodule ExAws.S3.Upload do
   end
 
   @doc """
+  Chunks a binary into a nested list of bytes.
+  Chunk size must be at least 5 MiB. Defaults to 5MiB
+  """
+  @spec stream_bytes(data :: binary) :: list()
+  @spec stream_bytes(data :: binary, opts :: [chunk_size: pos_integer]) :: list()
+  def stream_bytes(data, opts \\ []) do
+    data
+    |> :binary.bin_to_list()
+    |> Enum.chunk_every(opts[:chunk_size] || @default_chunk_size)
+  end
+
+  @doc """
   Open a file stream for use in an upload.
 
   Chunk size must be at least 5 MiB. Defaults to 5 MiB
@@ -67,8 +85,14 @@ defmodule ExAws.S3.Upload do
   positive integer index indicating which chunk it is. It will return this index
   along with the `etag` response from AWS necessary to complete the multipart upload.
   """
-  @spec upload_chunk!({binary, pos_integer}, t, ExAws.Config.t) :: {pos_integer, binary}
+  @spec upload_chunk!({binary | list(), pos_integer}, t, ExAws.Config.t) :: {pos_integer, binary}
   def upload_chunk!({chunk, i}, op, config) do
+    chunk =
+      case is_binary(chunk) do
+        true -> chunk
+        _ -> :binary.list_to_bin(chunk)
+      end
+
     %{headers: headers} = ExAws.S3.upload_part(op.bucket, op.path, op.upload_id, i, chunk, op.opts)
     |> ExAws.request!(config)
 
