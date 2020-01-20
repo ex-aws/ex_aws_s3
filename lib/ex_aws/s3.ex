@@ -186,7 +186,7 @@ defmodule ExAws.S3 do
   def list_objects(bucket, opts \\ []) do
     params = opts
     |> format_and_take(@params)
-    
+
     request(:get, bucket, "/", [params: params, headers: opts[:headers]],
       stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
@@ -829,11 +829,17 @@ defmodule ExAws.S3 do
     |> Map.delete(:encryption)
     |> put_object_headers
 
+    encoded_src_object = src_object
+    |> String.split("/")
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&(URI.encode_www_form(&1)))
+    |> Enum.join("/")
+
     headers = regular_headers
     |> Map.merge(amz_headers)
     |> Map.merge(source_encryption)
     |> Map.merge(destination_encryption)
-    |> Map.put("x-amz-copy-source", URI.encode "/#{src_bucket}/#{src_object}")
+    |> Map.put("x-amz-copy-source", "/#{URI.encode_www_form(src_bucket)}/#{encoded_src_object}")
 
     request(:put, dest_bucket, dest_object, headers: headers)
   end
