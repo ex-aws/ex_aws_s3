@@ -111,6 +111,107 @@ defmodule ExAws.S3.Utils do
     |> IO.iodata_to_binary
   end
 
+  def build_lifecycle_rule(rule) do
+    # ID
+    properties = ["<ID>", rule.id, "</ID>"]
+
+    # Status
+    status_text = if rule.enabled, do: "Enabled", else: "Disabled"
+    properties = [["<Status>", status_text, "</Status>"] | properties]
+
+    # Filter
+    filter_prefix =
+      case Map.get(rule.filter, :prefix, nil) do
+        prefix when is_binary(prefix) and prefix != "" ->
+          [["<Prefix>", prefix, "</Prefix>"]]
+
+        _ ->
+          []
+      end
+
+    filter_tags =
+      Enum.map(Map.get(rule.filter, :tags, []), fn {key, value} ->
+        ["<Tag>", ["<Key>", key, "</Key>", "<Value>", value, "</Value>"], "</Tag>"]
+      end)
+
+    filters =
+      case filter_prefix ++ filter_tags do
+        [] -> []
+        [_] = filters -> filters
+        many -> ["<And>", many, "</And>"]
+      end
+
+    properties = [["<Filter>", filters, "</Filter>"] | properties]
+
+    # Actions
+    mapping = [
+      transition: %{
+        tag: "Transition",
+        action_tags: fn %{storage: storage} ->
+          [["<StorageClass>", storage, "</StorageClass>"]]
+        end
+      },
+      expiration: %{
+        tag: "Expiration",
+        action_tags: fn %{expired_object_delete_marker: marker} ->
+          marker = if marker, do: "true", else: "false"
+          [["<ExpiredObjectDeleteMarker>", marker, "</ExpiredObjectDeleteMarker>"]]
+        end
+      },
+      noncurrent_version_transition: %{
+        tag: "NoncurrentVersionTransition",
+        action_tags: fn %{storage: storage} ->
+          [["<StorageClass>", storage, "</StorageClass>"]]
+        end
+      },
+      noncurrent_version_expiration: %{
+        tag: "NoncurrentVersionExpiration",
+        action_tags: fn _data -> [] end
+      },
+      abort_incomplete_multipart_upload: %{
+        tag: "AbortIncompleteMultipartUpload",
+        action_tags: fn _data -> [] end
+      }
+    ]
+
+    properties =
+      Enum.reduce(mapping, properties, fn {key, %{tag: tag, action_tags: fun}}, properties ->
+        case rule.actions[key] do
+          %{trigger: trigger} = config ->
+            trigger = livecycle_trigger(key, trigger)
+            action_tags = fun.(config)
+            [["<#{tag}>", [trigger | action_tags], "</#{tag}>"] | properties]
+
+          _ ->
+            properties
+        end
+      end)
+
+    ["<Rule>", properties, "</Rule>"]
+    |> IO.iodata_to_binary()
+  end
+
+  defp livecycle_trigger(action, {:date, %Date{} = date})
+       when action in [:transition, :expiration] do
+    ["<Date>", Date.to_iso8601(date), "</Date>"]
+  end
+
+  defp livecycle_trigger(action, {:days, days})
+       when action in [:transition, :expiration] and is_integer(days) and days > 0 do
+    ["<Days>", Integer.to_string(days), "</Days>"]
+  end
+
+  defp livecycle_trigger(action, {:days, days})
+       when action in [:abort_incomplete_multipart_upload] and is_integer(days) and days > 0 do
+    ["<DaysAfterInitiation>", Integer.to_string(days), "</DaysAfterInitiation>"]
+  end
+
+  defp livecycle_trigger(action, {:days, days})
+       when action in [:noncurrent_version_transition, :noncurrent_version_expiration] and
+              is_integer(days) and days > 0 do
+    ["<NoncurrentDays>", Integer.to_string(days), "</NoncurrentDays>"]
+  end
+
   def normalize_param(param) when is_atom(param) do
     param
     |> Atom.to_string
