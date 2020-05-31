@@ -51,6 +51,20 @@ defmodule ExAws.S3 do
   |> Task.async_stream(upload_file, max_concurrency: 10)
   |> Stream.run
   ```
+
+  ## Configuration
+
+  The `scheme`, `host`, and `port` can be configured to hit alternate endpoints.
+
+  For example, this is how to use a local minio instance:
+
+  ```
+  # config.exs
+  config :ex_aws, :s3,
+    scheme: "http://",
+    host: "localhost",
+    port: 9000
+  ```
   """
 
   import ExAws.S3.Utils
@@ -84,6 +98,7 @@ defmodule ExAws.S3 do
   @type presigned_url_opts :: [
       {:expires_in, integer}
     | {:virtual_host, boolean}
+    | {:s3_accelerate, boolean}
     | {:query_params, [{binary, binary}]}
   ]
 
@@ -184,6 +199,46 @@ defmodule ExAws.S3 do
     )
   end
 
+  @type list_objects_v2_opts :: [
+    {:delimiter, binary} |
+    {:prefix, binary} |
+    {:encoding_type, binary} |
+    {:max_keys, 0..1000} |
+    {:stream_prefixes, boolean} |
+    {:continuation_token, binary} |
+    {:fetch_owner, boolean} |
+    {:start_after, binary}
+  ]
+
+  @doc """
+  List objects in bucket
+
+  Can be streamed.
+
+  ## Examples
+  ```
+  S3.list_objects_v2("my-bucket") |> ExAws.request
+
+  S3.list_objects_v2("my-bucket") |> ExAws.stream!
+  S3.list_objects_v2("my-bucket", delimiter: "/", prefix: "backup") |> ExAws.stream!
+  S3.list_objects_v2("my-bucket", prefix: "some/inner/location/path") |> ExAws.stream!
+  S3.list_objects_v2("my-bucket", max_keys: 5, encoding_type: "url") |> ExAws.stream!
+  ```
+  """
+  @spec list_objects_v2(bucket :: binary) :: ExAws.Operation.S3.t
+  @spec list_objects_v2(bucket :: binary, opts :: list_objects_v2_opts) :: ExAws.Operation.S3.t
+  @params [:delimiter, :prefix, :encoding_type, :max_keys, :continuation_token, :fetch_owner, :start_after]
+  def list_objects_v2(bucket, opts \\ []) do
+    params = opts
+    |> format_and_take(@params)
+    |> Map.put("list-type", 2)
+
+    request(:get, bucket, "/", [params: params, headers: opts[:headers]],
+      stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
+      parser: &ExAws.S3.Parsers.parse_list_objects/1
+    )
+  end
+
   @doc "Get bucket acl"
   @spec get_bucket_acl(bucket :: binary) :: ExAws.Operation.S3.t
   def get_bucket_acl(bucket) do
@@ -242,7 +297,7 @@ defmodule ExAws.S3 do
   @spec get_bucket_object_versions(bucket :: binary) :: ExAws.Operation.S3.t
   @spec get_bucket_object_versions(bucket :: binary, opts :: Keyword.t) :: ExAws.Operation.S3.t
   def get_bucket_object_versions(bucket, opts \\ []) do
-    request(:get, bucket, "/", resource: "versions", params: opts)
+    request(:get, bucket, "/", [resource: "versions", params: opts], parser: &ExAws.S3.Parsers.parse_bucket_object_versions/1)
   end
 
   @doc "Get bucket payment configuration"
@@ -292,14 +347,14 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/", body: body, headers: headers)
   end
 
-  @doc "Update or create a bucket bucket access control"
+  @doc "Update or create a bucket access control policy"
   @spec put_bucket_acl(bucket :: binary, opts :: [acl_opts]) :: ExAws.Operation.S3.t
   def put_bucket_acl(bucket, grants) do
     request(:put, bucket, "/", headers: format_acl_headers(grants))
   end
 
   @doc "Update or create a bucket CORS policy"
-  @spec put_bucket_cors(bucket :: binary, cors_config :: map()) :: ExAws.Operation.S3.t
+  @spec put_bucket_cors(bucket :: binary, cors_config :: list(map())) :: ExAws.Operation.S3.t
   def put_bucket_cors(bucket, cors_rules) do
     rules = cors_rules
     |> Enum.map(&build_cors_rule/1)
@@ -321,7 +376,7 @@ defmodule ExAws.S3 do
   end
 
   @doc "Update or create a bucket policy configuration"
-  @spec put_bucket_policy(bucket :: binary, policy :: map()) :: ExAws.Operation.S3.t
+  @spec put_bucket_policy(bucket :: binary, policy :: String.t) :: ExAws.Operation.S3.t
   def put_bucket_policy(bucket, policy) do
     request(:put, bucket, "/", resource: "policy", body: policy)
   end
@@ -378,7 +433,7 @@ defmodule ExAws.S3 do
   ## Objects
   ###########
 
-  @doc "Delete object object in bucket"
+  @doc "Delete an object within a bucket"
   @spec delete_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   def delete_object(bucket, object, opts \\ []) do
     request(:delete, bucket, object, headers: opts |> Map.new)
@@ -493,15 +548,15 @@ defmodule ExAws.S3 do
   ]
 
   @doc """
-  Download an S3 Object to a file.
+  Download an S3 object to a file.
 
-  This operation download multiple parts of an S3 object concurrently, allowing
+  This operation downloads multiple parts of an S3 object concurrently, allowing
   you to maximize throughput.
 
   Defaults to a concurrency of 8, chunk size of 1MB, and a timeout of 1 minute.
   """
-  @spec download_file(bucket :: binary, path :: binary, dest :: binary) :: __MODULE__.Download.t
-  @spec download_file(bucket :: binary, path :: binary, dest :: binary, opts :: download_file_opts) :: __MODULE__.Download.t
+  @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary) :: __MODULE__.Download.t
+  @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary, opts :: download_file_opts) :: __MODULE__.Download.t
   def download_file(bucket, path, dest, opts \\ []) do
     %__MODULE__.Download{
       bucket: bucket,
@@ -586,7 +641,7 @@ defmodule ExAws.S3 do
     | {:if_none_match, binary}
   @type head_object_opts :: [head_object_opt]
 
-  @doc "Determine of an object exists"
+  @doc "Determine if an object exists"
   @spec head_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   @spec head_object(bucket :: binary, object :: binary, opts :: head_object_opts) :: ExAws.Operation.S3.t
   @request_headers [:range, :if_modified_since, :if_unmodified_since, :if_match, :if_none_match]
@@ -674,7 +729,7 @@ defmodule ExAws.S3 do
     request(:put, bucket, object, body: body, headers: put_object_headers(opts))
   end
 
-  @doc "Create or update an object's access control FIXME"
+  @doc "Create or update an object's access control policy"
   @spec put_object_acl(bucket :: binary, object :: binary, acl :: [acl_opts]) :: ExAws.Operation.S3.t
   def put_object_acl(bucket, object, acl) do
     headers = acl |> Map.new |> format_acl_headers
@@ -780,11 +835,17 @@ defmodule ExAws.S3 do
     |> Map.delete(:encryption)
     |> put_object_headers
 
+    encoded_src_object = src_object
+    |> String.split("/")
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&(URI.encode_www_form(&1)))
+    |> Enum.join("/")
+
     headers = regular_headers
     |> Map.merge(amz_headers)
     |> Map.merge(source_encryption)
     |> Map.merge(destination_encryption)
-    |> Map.put("x-amz-copy-source", URI.encode "/#{src_bucket}/#{src_object}")
+    |> Map.put("x-amz-copy-source", "/#{URI.encode_www_form(src_bucket)}/#{encoded_src_object}")
 
     request(:put, dest_bucket, dest_object, headers: headers)
   end
@@ -921,10 +982,13 @@ defmodule ExAws.S3 do
   end
 
   @doc """
-  Generates a pre-signed URL for this object.
+  Generate a pre-signed URL for an object.
 
-  When option param :virtual_host is `true`, the {#bucket} name will be used as
+  When option param `:virtual_host` is `true`, the bucket name will be used as
   the hostname. This will cause the returned URL to be 'http' and not 'https'.
+
+  When option param `:s3_accelerate` is `true`, the bucket name will be used as
+  the hostname, along with the `s3-accelerate.amazonaws.com` host.
 
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
@@ -934,8 +998,15 @@ defmodule ExAws.S3 do
   @one_week 60 * 60 * 24 * 7
   def presigned_url(config, http_method, bucket, object, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
-    virtual_host = Keyword.get(opts, :virtual_host, false)
     query_params = Keyword.get(opts, :query_params, [])
+    virtual_host = Keyword.get(opts, :virtual_host, false)
+    s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
+
+    {config, virtual_host} =
+      if s3_accelerate,
+        do: {put_accelerate_host(config), true},
+        else: {config, virtual_host}
+
     case expires_in > @one_week do
       true -> {:error, "expires_in_exceeds_one_week"}
       false ->
@@ -1038,5 +1109,9 @@ defmodule ExAws.S3 do
     policy
     |> config.json_codec.encode!()
     |> Base.encode64()
+  end
+
+  defp put_accelerate_host(config) do
+    Map.put(config, :host, "s3-accelerate.amazonaws.com")
   end
 end

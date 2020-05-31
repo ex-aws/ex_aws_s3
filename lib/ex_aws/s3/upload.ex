@@ -30,6 +30,13 @@ defmodule ExAws.S3.Upload do
     service: :s3
   }
 
+  def complete([], op, config) do
+    # We must upload at least one "part", otherwise the
+    # CompleteMultipartUpload request will fail.  So if there were no
+    # parts (because we're uploading an empty file), upload an empty part.
+    part = upload_chunk!({"", 1}, op, config)
+    complete([part], op, config)
+  end
   def complete(parts, op, config) do
     ExAws.S3.complete_multipart_upload(op.bucket, op.path, op.upload_id, Enum.sort_by(parts, &elem(&1, 0)))
     |> ExAws.request(config)

@@ -92,7 +92,20 @@ defimpl ExAws.Operation, for: ExAws.S3.Download do
     end
   end
 
-  def stream!(_op, _config) do
-    raise "not supported yet"
+  def stream!(op, config) do
+    op
+    |> Download.build_chunk_stream(config)
+    |> Task.async_stream(fn boundaries ->
+      Download.get_chunk(op, boundaries, config)
+    end,
+      max_concurrency: Keyword.get(op.opts, :max_concurrency, 8),
+      timeout: Keyword.get(op.opts, :timeout, 60_000)
+    )
+    |> Stream.map(fn
+      # Download.get_chunk/3 uses ExAws.request! so if we get here it is
+      # successful otherwise it has already risen an error
+      {:ok, {_start_byte, chunk}} ->
+        chunk
+    end)
   end
 end
