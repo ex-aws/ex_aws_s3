@@ -1,21 +1,11 @@
 defmodule ExAws.S3IntegrationTest do
   use ExUnit.Case, async: true
 
-  import Mox
+  import Support.BypassHelpers
 
-  setup :verify_on_exit!
+  setup [:start_bypass]
 
-  test "#list_buckets with ExAws.request()" do
-    headers = [
-      {"x-amz-id-2",
-       "bcjkrRggpJ2cOi3XidPRAyaCNPe4q3rQsFf2wzrT10feAj9wgbws9AGymVzXEVguTR37PPCLL2s="},
-      {"x-amz-request-id", "CFF957E0FA89C0B3"},
-      {"Date", "Tue, 23 Jun 2020 09:40:37 GMT"},
-      {"Content-Type", "application/xml"},
-      {"Transfer-Encoding", "chunked"},
-      {"Server", "AmazonS3"}
-    ]
-
+  test "#list_buckets with ExAws.request()", %{bypass: bypass} do
     body = ~S"""
     <?xml version="1.0" encoding="UTF-8"?>
     <ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -32,12 +22,20 @@ defmodule ExAws.S3IntegrationTest do
     </ListAllMyBucketsResult>
     """
 
-    ExAws.S3.HttpClientMock
-    |> expect(:request, fn :get, "https://s3.amazonaws.com/", _body, _headers, _opts ->
-      {:ok, %{status_code: 200, headers: headers, body: body}}
+    Bypass.expect(bypass, fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+
+      case conn do
+        %{method: "GET", request_path: "/"} ->
+          conn
+          |> Plug.Conn.put_resp_header("Content-Type", "application/xml")
+          |> Plug.Conn.send_resp(200, body)
+      end
     end)
 
-    assert {:ok, %{body: body}} = ExAws.S3.list_buckets() |> ExAws.request()
+    assert {:ok, %{body: body}} =
+             ExAws.S3.list_buckets() |> ExAws.request(exaws_config_for_bypass(bypass))
+
     assert %{buckets: [%{name: "ex-aws-s3-test-bucket"}]} = body
   end
 end
