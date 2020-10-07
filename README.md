@@ -5,7 +5,8 @@ Service module for https://github.com/ex-aws/ex_aws
 ## Installation
 
 The package can be installed by adding `ex_aws_s3` to your list of dependencies in `mix.exs`
-along with `:ex_aws` and your preferred JSON codec / http client
+along with `:ex_aws`, your preferred JSON codec / http client, and optionally `sweet_xml`
+to support operations like `list_objects` that require XML parsing.
 
 ```elixir
 def deps do
@@ -14,6 +15,7 @@ def deps do
     {:ex_aws_s3, "~> 2.0"},
     {:poison, "~> 3.0"},
     {:hackney, "~> 1.9"},
+    {:sweet_xml, "~> 0.6.6"}, # optional dependency
   ]
 end
 ```
