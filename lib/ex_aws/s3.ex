@@ -510,9 +510,18 @@ defmodule ExAws.S3 do
   ]
   @type get_object_opts :: [
     {:response, get_object_response_opts}
+    | {:version_id, binary}
     | head_object_opt
   ]
-  @doc "Get an object from a bucket"
+  @doc """
+  Get an object from a bucket
+
+  ## Examples
+  ```
+  S3.get_object("my-bucket", "image.png")
+  S3.get_object("my-bucket", "image.png", version_id: "ae57ekgXPpdiVZLkYVWoTAGRhGJ5swt9")
+  ```
+  """
   @spec get_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   @spec get_object(bucket :: binary, object :: binary, opts :: get_object_opts) :: ExAws.Operation.S3.t
   @response_params [:content_type, :content_language, :expires, :cache_control, :content_disposition, :content_encoding]
@@ -525,6 +534,10 @@ defmodule ExAws.S3 do
     |> format_and_take(@response_params)
     |> namespace("response")
 
+    params = opts
+    |> format_and_take([:version_id])
+    |> Map.merge(response_opts)
+
     headers = opts
     |> format_and_take(@request_headers)
 
@@ -533,7 +546,7 @@ defmodule ExAws.S3 do
     |> build_encryption_headers
     |> Map.merge(headers)
 
-    request(:get, bucket, object, headers: headers, params: response_opts)
+    request(:get, bucket, object, headers: headers, params: params)
   end
 
   @type download_file_opts :: [
@@ -696,10 +709,7 @@ defmodule ExAws.S3 do
     |> build_encryption_headers
     |> Map.merge(headers)
 
-    params = case Map.fetch(opts, :version_id) do
-      {:ok, id} -> %{"versionId" => id}
-      _ -> %{}
-    end
+    params = format_and_take(opts, [:version_id])
     request(:head, bucket, object, headers: headers, params: params)
   end
 
@@ -735,10 +745,7 @@ defmodule ExAws.S3 do
     number_of_days :: pos_integer,
     opts           :: [version_id: binary]) :: ExAws.Operation.S3.t
   def post_object_restore(bucket, object, number_of_days, opts \\ []) do
-    params = case Keyword.fetch(opts, :version_id) do
-      {:ok, id} -> %{"versionId" => id}
-      _ -> %{}
-    end
+    params = format_and_take(opts, [:version_id])
 
     body = """
     <RestoreRequest xmlns="http://s3.amazonaws.com/doc/2006-3-01">

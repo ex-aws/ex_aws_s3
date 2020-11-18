@@ -53,7 +53,10 @@ defmodule ExAws.S3Test do
     expected = %Operation.S3{
       bucket: "bucket",
       headers: %{"x-amz-server-side-encryption-customer-algorithm" => "md5"},
-      params: %{"response-content-type" => "application/json"},
+      params: %{
+        "response-content-type" => "application/json",
+        "versionId" => "g6qNRfGox7jrBvrs9x28soa0JdEaRwAN"
+      },
       path: "object.json",
       http_method: :get
     }
@@ -63,7 +66,8 @@ defmodule ExAws.S3Test do
                "bucket",
                "object.json",
                response: [content_type: "application/json"],
-               encryption: [customer_algorithm: "md5"]
+               encryption: [customer_algorithm: "md5"],
+               version_id: "g6qNRfGox7jrBvrs9x28soa0JdEaRwAN"
              )
   end
 
