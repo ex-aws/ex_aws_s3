@@ -673,6 +673,7 @@ defmodule ExAws.S3 do
   @type head_object_opt ::
     {:encryption, customer_encryption_opts}
     | {:range, binary}
+    | {:version_id, binary}
     | {:if_modified_since, binary}
     | {:if_unmodified_since, binary}
     | {:if_match, binary}
