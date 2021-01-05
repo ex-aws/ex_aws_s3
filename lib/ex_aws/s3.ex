@@ -764,7 +764,7 @@ defmodule ExAws.S3 do
     | {:content_type, binary}
     | {:expect, binary}
     | {:expires, binary}
-    | {:storage_class, :standard | :redunced_redundancy}
+    | {:storage_class, :standard | :reduced_redundancy}
     | {:website_redirect_location, binary}
     | {:encryption, encryption_opts}
     | {:meta, amz_meta_opts}
@@ -835,7 +835,7 @@ defmodule ExAws.S3 do
     | {:content_type, binary}
     | {:expect, binary}
     | {:expires, binary}
-    | {:storage_class, :standard | :redunced_redundancy}
+    | {:storage_class, :standard | :reduced_redundancy}
     | {:website_redirect_location, binary}
     | {:meta, amz_meta_opts}
     | acl_opts
@@ -903,7 +903,7 @@ defmodule ExAws.S3 do
     | {:content_encoding, binary}
     | {:content_type, binary}
     | {:expires, binary}
-    | {:storage_class, :standard | :redunced_redundancy}
+    | {:storage_class, :standard | :reduced_redundancy}
     | {:website_redirect_location, binary}
     | {:encryption, encryption_opts}
     | acl_opts
