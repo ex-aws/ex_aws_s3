@@ -819,27 +819,27 @@ defmodule ExAws.S3 do
     request(:put, bucket, object, resource: "tagging", body: body_binary, headers: headers)
   end
 
-  @type pub_object_copy_opts :: [
-    {:metadata_directive, :COPY | :REPLACE}
-    | {:copy_source_if_modified_since, binary}
-    | {:copy_source_if_unmodified_since, binary}
-    | {:copy_source_if_match, binary}
-    | {:copy_source_if_none_match, binary}
-    | {:website_redirect_location, binary}
-    | {:destination_encryption, encryption_opts}
-    | {:source_encryption, customer_encryption_opts}
-    | {:cache_control, binary}
-    | {:content_disposition, binary}
-    | {:content_encoding, binary}
-    | {:content_length, binary}
-    | {:content_type, binary}
-    | {:expect, binary}
-    | {:expires, binary}
-    | {:storage_class, :standard | :reduced_redundancy}
-    | {:website_redirect_location, binary}
-    | {:meta, amz_meta_opts}
-    | acl_opts
-  ]
+  @type put_object_copy_opts :: [
+          {:metadata_directive, :COPY | :REPLACE}
+          | {:copy_source_if_modified_since, binary}
+          | {:copy_source_if_unmodified_since, binary}
+          | {:copy_source_if_match, binary}
+          | {:copy_source_if_none_match, binary}
+          | {:website_redirect_location, binary}
+          | {:destination_encryption, encryption_opts}
+          | {:source_encryption, customer_encryption_opts}
+          | {:cache_control, binary}
+          | {:content_disposition, binary}
+          | {:content_encoding, binary}
+          | {:content_length, binary}
+          | {:content_type, binary}
+          | {:expect, binary}
+          | {:expires, binary}
+          | {:storage_class, :standard | :reduced_redundancy}
+          | {:website_redirect_location, binary}
+          | {:meta, amz_meta_opts}
+          | acl_opts
+        ]
 
   @doc "Copy an object"
   @spec put_object_copy(
@@ -848,11 +848,12 @@ defmodule ExAws.S3 do
     src_bucket  :: binary,
     src_object  :: binary) :: ExAws.Operation.S3.t
   @spec put_object_copy(
-    dest_bucket :: binary,
-    dest_object :: binary,
-    src_bucket  :: binary,
-    src_object  :: binary,
-    opts        :: pub_object_copy_opts) :: ExAws.Operation.S3.t
+          dest_bucket :: binary,
+          dest_object :: binary,
+          src_bucket :: binary,
+          src_object :: binary,
+          opts :: put_object_copy_opts
+        ) :: ExAws.Operation.S3.t()
   @amz_headers ~w(
     metadata_directive
     copy_source_if_modified_since
