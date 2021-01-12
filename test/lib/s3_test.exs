@@ -376,8 +376,17 @@ defmodule ExAws.S3Test do
   end
 
   test "#presigned_url file is key with query params" do
-    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "/foo/bar.txt?d=400")
-    assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo/bar.txt%3Fd%3D400", "3600")
+    query_params = %{"d" => "400"}
+
+    {:ok, url} =
+      S3.presigned_url(config(), :get, "bucket", "/foo/bar.txt", query_params: query_params)
+
+    assert_pre_signed_url(
+      url,
+      "https://s3.amazonaws.com/bucket/foo/bar.txt",
+      "3600",
+      query_params
+    )
   end
 
   test "#presigned_url raises exception on bad expires_in option" do
@@ -456,21 +465,40 @@ defmodule ExAws.S3Test do
     assert expected == S3.delete_object_tagging(bucket, object)
   end
 
-  defp assert_pre_signed_url(url, expected_scheme_host_path, expected_expire) do
+  @spec assert_pre_signed_url(
+          url,
+          expected_scheme_host_path,
+          expected_expire,
+          expected_query_params
+        ) :: none()
+        when url: binary,
+             expected_scheme_host_path: binary,
+             expected_expire: pos_integer(),
+             expected_query_params: Access.t()
+  defp assert_pre_signed_url(
+         url,
+         expected_scheme_host_path,
+         expected_expire,
+         expected_query_params \\ []
+       ) do
     uri = URI.parse(url)
     assert expected_scheme_host_path == "#{uri.scheme}://#{uri.host}#{uri.path}"
-    headers = URI.query_decoder(uri.query) |> Enum.map(& &1)
+    headers = URI.decode_query(uri.query)
 
-    assert [
-             {"X-Amz-Algorithm", "AWS4-HMAC-SHA256"},
-             {"X-Amz-Credential", _},
-             {"X-Amz-Date", _},
-             {"X-Amz-Expires", _},
-             {"X-Amz-SignedHeaders", "host"},
-             {"X-Amz-Signature", _}
-           ] = headers
+    assert %{
+             "X-Amz-Algorithm" => "AWS4-HMAC-SHA256",
+             "X-Amz-Credential" => _,
+             "X-Amz-Date" => _,
+             "X-Amz-Expires" => expires,
+             "X-Amz-SignedHeaders" => "host",
+             "X-Amz-Signature" => _
+           } = headers
 
-    assert {"X-Amz-Expires", expected_expire} == List.keyfind(headers, "X-Amz-Expires", 0)
+    assert expires == expected_expire
+
+    for {key, value} <- expected_query_params do
+      assert headers[key] == value
+    end
   end
 
   defp config(), do: ExAws.Config.new(:s3, [])
