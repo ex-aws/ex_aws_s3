@@ -848,14 +848,31 @@ defmodule ExAws.S3 do
     request(:put, bucket, object, headers: headers, resource: "acl")
   end
 
-  @doc "Add a set of tags to an existing object"
+  @doc """
+  Add a set of tags to an existing object
+
+  ## Options
+
+  - `:version_id` - The versionId of the object that the tag-set will be added to.
+
+  """
   @spec put_object_tagging(
           bucket :: binary,
           object :: binary,
           tags :: Access.t(),
-          opts :: Keyword.t()
+          opts :: [option]
         ) :: ExAws.Operation.S3.t()
+        when option: {:version_id, binary} | {atom, binary}
   def put_object_tagging(bucket, object, tags, opts \\ []) do
+    {version_id, opts} = Keyword.pop(opts, :version_id)
+
+    params =
+      if version_id do
+        %{"versionId" => version_id}
+      else
+        %{}
+      end
+
     tags_xml =
       Enum.map(tags, fn
         {key, value} ->
@@ -880,7 +897,12 @@ defmodule ExAws.S3 do
 
     body_binary = body |> IO.iodata_to_binary()
 
-    request(:put, bucket, object, resource: "tagging", body: body_binary, headers: headers)
+    request(:put, bucket, object,
+      resource: "tagging",
+      body: body_binary,
+      headers: headers,
+      params: params
+    )
   end
 
   @type put_object_copy_opts :: [
