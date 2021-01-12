@@ -29,7 +29,7 @@ defmodule ExAws.S3Test do
         "bucket",
         headers: %{"x-amz-request-payer" => "requester"},
         prefix: "/path/to/objs",
-        start_after: "/path/to/objs/sub",
+        start_after: "/path/to/objs/sub"
       )
 
     %Operation.S3{
@@ -40,11 +40,13 @@ defmodule ExAws.S3Test do
     } = res
 
     assert headers == %{"x-amz-request-payer" => "requester"}
+
     assert params == %{
-      "prefix" => "/path/to/objs",
-      "start-after" => "/path/to/objs/sub",
-      "list-type" => 2
-    }
+             "prefix" => "/path/to/objs",
+             "start-after" => "/path/to/objs/sub",
+             "list-type" => 2
+           }
+
     assert bucket == "bucket"
     assert http_method == :get
   end
@@ -205,7 +207,12 @@ defmodule ExAws.S3Test do
     }
 
     assert expected ==
-             S3.put_object_copy("dest-bucket", "dest-object", "src-bucket", "/foo/hello+friend.txt")
+             S3.put_object_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "/foo/hello+friend.txt"
+             )
   end
 
   test "#complete_multipart_upload" do
