@@ -24,23 +24,21 @@ defmodule ExAws.S3.Mixfile do
     [
       description: "#{@name} service package",
       files: ["lib", "config", "mix.exs", "README*"],
-      maintainers: ["Ben Wilson"],
+      maintainers: ["Bernard Duggan", "Ben Wilson"],
       licenses: ["MIT"],
-      links: %{github: @url}
+      links: %{GitHub: @url}
     ]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
