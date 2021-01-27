@@ -799,7 +799,7 @@ defmodule ExAws.S3 do
           tags :: Access.t(),
           opts :: [option]
         ) :: ExAws.Operation.S3.t()
-        when option: {:version_id, binary} | {atom, binary}
+        when option: {atom, binary}
   def put_object_tagging(bucket, object, tags, opts \\ []) do
     {version_id, opts} = Keyword.pop(opts, :version_id)
 
