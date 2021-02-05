@@ -14,7 +14,7 @@ defmodule ExAws.S3.UploadTest do
 
       {:ok, _} =
         file_path
-        |> S3.Upload.stream_file
+        |> S3.Upload.stream_file()
         |> S3.upload("my-bucket", "test.txt")
         |> ExAws.request(exaws_config_for_bypass(bypass))
 
@@ -28,11 +28,13 @@ defmodule ExAws.S3.UploadTest do
     request_path = "/#{bucket_name}/#{path}"
     upload_id = "a-very-secret-upload"
 
-    Bypass.expect bypass, fn conn ->
+    Bypass.expect(bypass, fn conn ->
       conn = Plug.Conn.fetch_query_params(conn)
+
       case conn do
         %{method: "POST", request_path: ^request_path, query_params: %{"uploadId" => ^upload_id}} ->
           send(test_pid, :completed_upload)
+
           conn
           |> Plug.Conn.send_resp(200, "")
 
@@ -44,17 +46,19 @@ defmodule ExAws.S3.UploadTest do
             <UploadId>#{upload_id}</UploadId>
           </InitiateMultipartUploadResult>
           """
+
           send(test_pid, :initiated_upload)
+
           conn
           |> Plug.Conn.send_resp(200, body)
 
         %{method: "PUT", request_path: ^request_path} ->
           send(test_pid, :chunk_uploaded)
+
           conn
           |> Plug.Conn.put_resp_header("ETag", "abc123")
           |> Plug.Conn.send_resp(200, "")
-
       end
-    end
+    end)
   end
 end

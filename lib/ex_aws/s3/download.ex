@@ -9,7 +9,7 @@ defmodule ExAws.S3.Download do
     :path,
     :dest,
     opts: [],
-    service: :s3,
+    service: :s3
   ]
 
   @type t :: %__MODULE__{}
@@ -17,7 +17,7 @@ defmodule ExAws.S3.Download do
   def get_chunk(op, %{start_byte: start_byte, end_byte: end_byte}, config) do
     %{body: body} =
       op.bucket
-      |> ExAws.S3.get_object(op.path, [range: "bytes=#{start_byte}-#{end_byte}"])
+      |> ExAws.S3.get_object(op.path, range: "bytes=#{start_byte}-#{end_byte}")
       |> ExAws.request!(config)
 
     {start_byte, body}
@@ -53,12 +53,11 @@ defmodule ExAws.S3.Download do
     headers
     |> Enum.find(fn {k, _} -> String.downcase(k) == "content-length" end)
     |> elem(1)
-    |> String.to_integer
+    |> String.to_integer()
   end
 end
 
 defimpl ExAws.Operation, for: ExAws.S3.Download do
-
   alias ExAws.S3.Download
 
   def perform(op, config) do
@@ -68,18 +67,20 @@ defimpl ExAws.Operation, for: ExAws.S3.Download do
   end
 
   defp download_to({:error, e}, _op, _config), do: {:error, e}
+
   defp download_to({:ok, file}, op, config) do
     try do
       op
       |> Download.build_chunk_stream(config)
-      |> Task.async_stream(fn boundaries ->
-        chunk = Download.get_chunk(op, boundaries, config)
-        :ok = :file.pwrite(file, [chunk])
-      end,
+      |> Task.async_stream(
+        fn boundaries ->
+          chunk = Download.get_chunk(op, boundaries, config)
+          :ok = :file.pwrite(file, [chunk])
+        end,
         max_concurrency: Keyword.get(op.opts, :max_concurrency, 8),
         timeout: Keyword.get(op.opts, :timeout, 60_000)
       )
-      |> Stream.run
+      |> Stream.run()
 
       File.close(file)
 
@@ -95,9 +96,10 @@ defimpl ExAws.Operation, for: ExAws.S3.Download do
   def stream!(op, config) do
     op
     |> Download.build_chunk_stream(config)
-    |> Task.async_stream(fn boundaries ->
-      Download.get_chunk(op, boundaries, config)
-    end,
+    |> Task.async_stream(
+      fn boundaries ->
+        Download.get_chunk(op, boundaries, config)
+      end,
       max_concurrency: Keyword.get(op.opts, :max_concurrency, 8),
       timeout: Keyword.get(op.opts, :timeout, 60_000)
     )

@@ -13,12 +13,13 @@ defmodule ExAws.S3.ParserTest do
 
     result = ExAws.S3.Parsers.parse_upload({:ok, %{body: upload_response}})
     {:ok, %{body: parsed_body}} = result
+
     assert parsed_body == %{
-      location: "https://google.com",
-      bucket: "name_of_my_bucket",
-      key: "name_of_my_key.ext",
-      eTag: "\"89asdfasdf0asdfasdfasd\""
-    }
+             location: "https://google.com",
+             bucket: "name_of_my_bucket",
+             key: "name_of_my_key.ext",
+             eTag: "\"89asdfasdf0asdfasdfasd\""
+           }
   end
 
   test "#parse_list_objects parses CommonPrefixes" do
@@ -49,7 +50,7 @@ defmodule ExAws.S3.ParserTest do
 
     result = ExAws.S3.Parsers.parse_list_objects({:ok, %{body: list_objects_response}})
     {:ok, %{body: %{common_prefixes: prefixes}}} = result
-    prefix_list = Enum.map(prefixes, &(Map.get(&1, :prefix)))
+    prefix_list = Enum.map(prefixes, &Map.get(&1, :prefix))
 
     assert ["photos/"] == prefix_list
   end
@@ -80,7 +81,6 @@ defmodule ExAws.S3.ParserTest do
     {:ok, _} = result
   end
 
-
   test "#initiate_multipart_upload parses response" do
     initiate_multipart_upload_response = """
     <InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -90,12 +90,18 @@ defmodule ExAws.S3.ParserTest do
     </InitiateMultipartUploadResult>
     """
 
-    result = ExAws.S3.Parsers.parse_initiate_multipart_upload({:ok, %{body: initiate_multipart_upload_response}})
+    result =
+      ExAws.S3.Parsers.parse_initiate_multipart_upload(
+        {:ok, %{body: initiate_multipart_upload_response}}
+      )
+
     {:ok, %{body: %{bucket: bucket, key: key, upload_id: upload_id}}} = result
 
     assert "somebucket" == bucket
     assert "abcd" == key
-    assert "bUCMhxUCGCA0GiTAhTj6cq2rChItfIMYBgO7To9yiuUyDk4CWqhtHPx8cGkgjzyavE2aW6HvhQgu9pvDB3.oX73RC7N3zM9dSU3mecTndVRHQLJCAsySsT6lXRd2Id2a" == upload_id
+
+    assert "bUCMhxUCGCA0GiTAhTj6cq2rChItfIMYBgO7To9yiuUyDk4CWqhtHPx8cGkgjzyavE2aW6HvhQgu9pvDB3.oX73RC7N3zM9dSU3mecTndVRHQLJCAsySsT6lXRd2Id2a" ==
+             upload_id
   end
 
   test "#parse_object_tagging parses empty tagset" do
@@ -105,6 +111,7 @@ defmodule ExAws.S3.ParserTest do
       <TagSet/>
     </Tagging>
     """
+
     assert {:ok, %{body: body}} = ExAws.S3.Parsers.parse_object_tagging({:ok, %{body: response}})
     assert body == %{tags: []}
   end
@@ -125,6 +132,7 @@ defmodule ExAws.S3.ParserTest do
       </TagSet>
     </Tagging>
     """
+
     assert {:ok, %{body: body}} = ExAws.S3.Parsers.parse_object_tagging({:ok, %{body: response}})
     assert body == %{tags: [%{key: "tag1", value: "val1"}, %{key: "tag2", value: "val2"}]}
   end

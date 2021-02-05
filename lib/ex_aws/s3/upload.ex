@@ -22,17 +22,17 @@ defmodule ExAws.S3.Upload do
     :path,
     :upload_id,
     opts: [],
-    service: :s3,
+    service: :s3
   ]
 
   @type t :: %__MODULE__{
-    src: Enumerable.t,
-    bucket: binary,
-    path: binary,
-    upload_id: binary,
-    opts: Keyword.t,
-    service: :s3
-  }
+          src: Enumerable.t(),
+          bucket: binary,
+          path: binary,
+          upload_id: binary,
+          opts: Keyword.t(),
+          service: :s3
+        }
 
   def complete([], op, config) do
     # We must upload at least one "part", otherwise the
@@ -41,13 +41,20 @@ defmodule ExAws.S3.Upload do
     part = upload_chunk!({"", 1}, op, config)
     complete([part], op, config)
   end
+
   def complete(parts, op, config) do
-    ExAws.S3.complete_multipart_upload(op.bucket, op.path, op.upload_id, Enum.sort_by(parts, &elem(&1, 0)))
+    ExAws.S3.complete_multipart_upload(
+      op.bucket,
+      op.path,
+      op.upload_id,
+      Enum.sort_by(parts, &elem(&1, 0))
+    )
     |> ExAws.request(config)
   end
 
   def initialize(op, config) do
     init_op = ExAws.S3.initiate_multipart_upload(op.bucket, op.path, op.opts)
+
     with {:ok, %{body: %{upload_id: upload_id}}} <- ExAws.request(init_op, config) do
       {:ok, %{op | upload_id: upload_id}}
     end
@@ -58,8 +65,8 @@ defmodule ExAws.S3.Upload do
 
   Chunk size must be at least 5 MiB. Defaults to 5 MiB
   """
-  @spec stream_file(path :: binary) :: File.Stream.t
-  @spec stream_file(path :: binary, opts :: [chunk_size: pos_integer]) :: File.Stream.t
+  @spec stream_file(path :: binary) :: File.Stream.t()
+  @spec stream_file(path :: binary, opts :: [chunk_size: pos_integer]) :: File.Stream.t()
   def stream_file(path, opts \\ []) do
     File.stream!(path, [], opts[:chunk_size] || 5 * 1024 * 1024)
   end
@@ -71,21 +78,22 @@ defmodule ExAws.S3.Upload do
   positive integer index indicating which chunk it is. It will return this index
   along with the `etag` response from AWS necessary to complete the multipart upload.
   """
-  @spec upload_chunk!({binary, pos_integer}, t, ExAws.Config.t) :: {pos_integer, binary}
+  @spec upload_chunk!({binary, pos_integer}, t, ExAws.Config.t()) :: {pos_integer, binary}
   def upload_chunk!({chunk, i}, op, config) do
-    %{headers: headers} = ExAws.S3.upload_part(op.bucket, op.path, op.upload_id, i, chunk, op.opts)
-    |> ExAws.request!(config)
+    %{headers: headers} =
+      ExAws.S3.upload_part(op.bucket, op.path, op.upload_id, i, chunk, op.opts)
+      |> ExAws.request!(config)
 
-    {_, etag} = Enum.find(headers, fn {k, _v} ->
-      String.downcase(k) == "etag"
-    end)
+    {_, etag} =
+      Enum.find(headers, fn {k, _v} ->
+        String.downcase(k) == "etag"
+      end)
 
     {i, etag}
   end
 end
 
 defimpl ExAws.Operation, for: ExAws.S3.Upload do
-
   alias ExAws.S3.Upload
 
   def perform(op, config) do
@@ -101,6 +109,5 @@ defimpl ExAws.Operation, for: ExAws.S3.Upload do
     end
   end
 
-  def stream!(_, _), do: raise "not implemented"
-
+  def stream!(_, _), do: raise("not implemented")
 end
