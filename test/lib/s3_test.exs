@@ -389,6 +389,11 @@ defmodule ExAws.S3Test do
     )
   end
 
+  test "#presigned_url file is key with embedded query params" do
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "/foo/bar.txt?d=400")
+    assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo/bar.txt", "3600", %{"d" => "400"})
+  end
+
   test "#presigned_url raises exception on bad expires_in option" do
     opts = [expires_in: 60 * 60 * 24 * 8]
     {:error, reason} = S3.presigned_url(config(), :get, "bucket", "foo.txt", opts)
