@@ -451,6 +451,15 @@ defmodule ExAws.S3Test do
     assert expected == S3.put_object_tagging(bucket, object, test: "hello")
   end
 
+  test "#put_object_tagging w/ version_id" do
+    bucket = "my-bucket"
+    object = "test.txt"
+    version_id = "GOh7ob90QUq53H4Vd4aacioB6Nt.NoaU"
+
+    assert %Operation.S3{params: %{"versionId" => ^version_id}} =
+             S3.put_object_tagging(bucket, object, [test: "hello"], version_id: version_id)
+  end
+
   test "#delete_object_tagging" do
     bucket = "my-bucket"
     object = "test.txt"
