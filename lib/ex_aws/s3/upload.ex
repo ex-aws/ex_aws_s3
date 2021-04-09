@@ -96,7 +96,6 @@ defimpl ExAws.Operation, for: ExAws.S3.Upload do
         max_concurrency: Keyword.get(op.opts, :max_concurrency, 4),
         timeout: Keyword.get(op.opts, :timeout, 30_000)
       )
-      |> Enum.to_list
       |> Enum.map(fn {:ok, val} -> val end)
       |> Upload.complete(op, config)
     end
