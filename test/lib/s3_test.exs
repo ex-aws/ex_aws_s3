@@ -241,18 +241,23 @@ defmodule ExAws.S3Test do
         "x-amz-copy-source-range" => "bytes=1-9",
         "x-amz-copy-source-server-side-encryption-customer-algorithm" => "md5"
       },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
       path: "dest-object",
       http_method: :put,
       parser: &ExAws.S3.Parsers.parse_upload_part_copy/1
     }
 
-    assert expected ==
+    assert expected == 
              S3.upload_part_copy(
                "dest-bucket",
                "dest-object",
                "src-bucket",
                "src-object",
-               source_encryption: [customer_algorithm: "md5"],
+               "upload-id",
+               1,
+               source_encryption: [
+                 customer_algorithm: "md5"
+               ],
                copy_source_range: 1..9
              )
   end
