@@ -31,7 +31,7 @@ defmodule ExAws.Operation.S3DeleteAllObjects do
 
     def stream!(%{bucket: bucket, objects: objects, opts: opts}, config) do
       objects
-      |> Stream.chunk_every(1000, 1000, [])
+      |> Stream.chunk_every(1000)
       |> Stream.flat_map(fn objects_in_batch ->
         bucket
         |> ExAws.S3.delete_multiple_objects(objects_in_batch, opts)

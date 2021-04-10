@@ -1,6 +1,8 @@
 defmodule ExAws.S3.Upload do
   @moduledoc """
-  Represents an AWS S3 Multipart Upload operation
+  Represents an AWS S3 Multipart Upload operation.
+
+  Implements `ExAws.Operation.perform/2`
 
   ## Examples
   ```
@@ -9,6 +11,8 @@ defmodule ExAws.S3.Upload do
   |> S3.upload("my-bucket", "path/on/s3")
   |> ExAws.request! #=> :done
   ```
+
+  See `ExAws.S3.upload/4` for options
   """
 
   @enforce_keys ~w(bucket path src)a
@@ -30,6 +34,13 @@ defmodule ExAws.S3.Upload do
     service: :s3
   }
 
+  def complete([], op, config) do
+    # We must upload at least one "part", otherwise the
+    # CompleteMultipartUpload request will fail.  So if there were no
+    # parts (because we're uploading an empty file), upload an empty part.
+    part = upload_chunk!({"", 1}, op, config)
+    complete([part], op, config)
+  end
   def complete(parts, op, config) do
     ExAws.S3.complete_multipart_upload(op.bucket, op.path, op.upload_id, Enum.sort_by(parts, &elem(&1, 0)))
     |> ExAws.request(config)
@@ -85,7 +96,6 @@ defimpl ExAws.Operation, for: ExAws.S3.Upload do
         max_concurrency: Keyword.get(op.opts, :max_concurrency, 4),
         timeout: Keyword.get(op.opts, :timeout, 30_000)
       )
-      |> Enum.to_list
       |> Enum.map(fn {:ok, val} -> val end)
       |> Upload.complete(op, config)
     end
