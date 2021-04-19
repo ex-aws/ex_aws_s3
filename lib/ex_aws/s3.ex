@@ -322,7 +322,6 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/", resource: "cors", body: body, headers: headers)
   end
 
-
   @doc """
   Update or create a bucket lifecycle configuration
 
