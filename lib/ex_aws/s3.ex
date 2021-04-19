@@ -322,11 +322,66 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/", resource: "cors", body: body, headers: headers)
   end
 
-  @doc "Update or create a bucket lifecycle configuration"
-  @spec put_bucket_lifecycle(bucket :: binary, lifecycle_config :: map()) :: no_return
-  def put_bucket_lifecycle(bucket, _livecycle_config) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  @doc """
+  Update or create a bucket lifecycle configuration
+
+  ## Live-Cycle Rule Format
+
+      %{
+        # Unique id for the rule (max. 255 chars, max. 1000 rules allowed)
+        id: "123",
+
+        # Disabled rules are not executed
+        enabled: true,
+
+        # Filters
+        # Can be based on prefix, object tag(s), both or none
+        filter: %{
+          prefix: "prefix/",
+          tags: %{
+            "key" => "value"
+          }
+        },
+
+        # Actions
+        # https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#intro-lifecycle-rules-actions
+        actions: %{
+          transition: %{
+            trigger: {:date, ~D[2020-03-26]}, # Date or days based
+            storage: ""
+          },
+          expiration: %{
+            trigger: {:days, 2}, # Date or days based
+            expired_object_delete_marker: true
+          },
+          noncurrent_version_transition: %{
+            trigger: {:days, 2}, # Only days based
+            storage: ""
+          },
+          noncurrent_version_expiration: %{
+            trigger: {:days, 2} # Only days based
+          },
+          abort_incomplete_multipart_upload: %{
+            trigger: {:days, 2} # Only days based
+          }
+        }
+      }
+
+  """
+  @spec put_bucket_lifecycle(bucket :: binary, lifecycle_rules :: list(map())) ::
+          ExAws.Operation.S3.t()
+  def put_bucket_lifecycle(bucket, lifecycle_rules) do
+    rules =
+      lifecycle_rules
+      |> Enum.map(&build_lifecycle_rule/1)
+      |> IO.iodata_to_binary()
+
+    body = "<LifecycleConfiguration>#{rules}</LifecycleConfiguration>"
+
+    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+    headers = %{"content-md5" => content_md5}
+
+    request(:put, bucket, "/", resource: "lifecycle", body: body, headers: headers)
   end
 
   @doc "Update or create a bucket policy configuration"
