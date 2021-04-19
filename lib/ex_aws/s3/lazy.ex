@@ -8,18 +8,23 @@ defmodule ExAws.S3.Lazy do
       |> Map.get(:body)
     end
 
-    Stream.resource(fn -> {request_fun, []} end, fn
-      :quit -> {:halt, nil}
+    Stream.resource(
+      fn -> {request_fun, []} end,
+      fn
+        :quit ->
+          {:halt, nil}
 
-      {fun, args} -> case fun.(args) do
+        {fun, args} ->
+          case fun.(args) do
+            results = %{is_truncated: "true"} ->
+              {add_results(results, opts), {fun, [marker: next_marker(results)]}}
 
-        results = %{is_truncated: "true"} ->
-          {add_results(results, opts), {fun, [marker: next_marker(results)]}}
-
-        results ->
-          {add_results(results, opts), :quit}
-      end
-    end, &(&1))
+            results ->
+              {add_results(results, opts), :quit}
+          end
+      end,
+      & &1
+    )
   end
 
   def add_results(results, opts) do
@@ -31,8 +36,9 @@ defmodule ExAws.S3.Lazy do
 
   def next_marker(%{next_marker: "", contents: contents}) do
     contents
-    |> List.last
+    |> List.last()
     |> Map.fetch!(:key)
   end
+
   def next_marker(%{next_marker: marker}), do: marker
 end
