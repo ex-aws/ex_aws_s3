@@ -260,14 +260,14 @@ defmodule ExAws.S3Test do
   test "#delete_multiple_objects" do
     expected = %Operation.S3{
       body:
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object></Delete>",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
       bucket: "bucket",
       path: "/?delete",
-      headers: %{"content-md5" => "lvfX5nHeLllWDA7QnpsnrA=="},
+      headers: %{"content-md5" => "G9Pq8w8AQUesREJndxKbKw=="},
       http_method: :post
     }
 
-    assert expected == S3.delete_multiple_objects("bucket", ["foo", {"bar", "v1"}])
+    assert expected == S3.delete_multiple_objects("bucket", ["foo", {"bar", "v1"}, "special characters: '\"&<>\r\n"])
   end
 
   test "#post_object_restore" do

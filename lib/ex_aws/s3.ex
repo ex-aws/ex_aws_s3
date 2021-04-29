@@ -474,10 +474,10 @@ defmodule ExAws.S3 do
     objects_xml =
       Enum.map(objects, fn
         {key, version} ->
-          ["<Object><Key>", key, "</Key><VersionId>", version, "</VersionId></Object>"]
+          ["<Object><Key>", escape_xml_string(key), "</Key><VersionId>", version, "</VersionId></Object>"]
 
         key ->
-          ["<Object><Key>", key, "</Key></Object>"]
+          ["<Object><Key>", escape_xml_string(key), "</Key></Object>"]
       end)
 
     quiet =
@@ -1242,5 +1242,17 @@ defmodule ExAws.S3 do
 
   defp put_accelerate_host(config) do
     Map.put(config, :host, "s3-accelerate.amazonaws.com")
+  end
+
+  defp escape_xml_string(value) do
+    String.replace(value, ["'", "\"", "&", "<", ">", "\r", "\n"], fn
+      "'" -> "&apos;"
+      "\"" -> "&quot;"
+      "&" -> "&amp;"
+      "<" -> "&lt;"
+      ">" -> "&gt;"
+      "\r" -> "&#13;"
+      "\n" -> "&#10;"
+    end)
   end
 end
