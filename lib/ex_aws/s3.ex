@@ -474,7 +474,13 @@ defmodule ExAws.S3 do
     objects_xml =
       Enum.map(objects, fn
         {key, version} ->
-          ["<Object><Key>", escape_xml_string(key), "</Key><VersionId>", version, "</VersionId></Object>"]
+          [
+            "<Object><Key>",
+            escape_xml_string(key),
+            "</Key><VersionId>",
+            version,
+            "</VersionId></Object>"
+          ]
 
         key ->
           ["<Object><Key>", escape_xml_string(key), "</Key></Object>"]

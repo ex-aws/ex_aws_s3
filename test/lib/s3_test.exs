@@ -267,7 +267,12 @@ defmodule ExAws.S3Test do
       http_method: :post
     }
 
-    assert expected == S3.delete_multiple_objects("bucket", ["foo", {"bar", "v1"}, "special characters: '\"&<>\r\n"])
+    assert expected ==
+             S3.delete_multiple_objects("bucket", [
+               "foo",
+               {"bar", "v1"},
+               "special characters: '\"&<>\r\n"
+             ])
   end
 
   test "#post_object_restore" do
