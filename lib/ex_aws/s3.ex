@@ -426,11 +426,23 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/")
   end
 
-  @doc "Update or create a bucket versioning configuration"
+  @doc """
+  Update or create a bucket versioning configuration
+
+  ## Example
+  ```
+  ExAws.S3.put_bucket_versioning(
+    "my-bucket",
+    "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>"
+  )
+  |> ExAws.request
+  ```
+  """
   @spec put_bucket_versioning(bucket :: binary, version_config :: binary) :: no_return
-  def put_bucket_versioning(bucket, _version_config) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  def put_bucket_versioning(bucket, version_config) do
+    content_md5 = :crypto.hash(:md5, version_config) |> Base.encode64
+    headers = %{"content-md5" => content_md5}
+    request(:put, bucket, "/", resource: "versioning", body: version_config, headers: headers)
   end
 
   @doc "Update or create a bucket website configuration"
