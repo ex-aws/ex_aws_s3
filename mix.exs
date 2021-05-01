@@ -10,7 +10,7 @@ defmodule ExAws.S3.Mixfile do
     [
       app: :ex_aws_s3,
       version: @version,
-      elixir: "~> 1.5",
+      elixir: "~> 1.9",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
