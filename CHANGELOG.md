@@ -1,5 +1,14 @@
 # Changelog
 
+v2.2.0 (2021-05-08)
+- Increase minimum Elixir version to 1.9
+- Correctly escape XML keys in `delete_multiple_objects/3`
+- Implement `put_bucket_lifecycle`
+- `Upload.perform/2`: Remove redundant `Enum.to_list/1` call
+- Use common usage doc between module and readme
+- Badges and more badges!
+- Various documentation fixes/tweaks
+
 v2.1.0 (2020-11-18)
 
 - Make optional `:sweet_xml` dependency more obvious in docs
