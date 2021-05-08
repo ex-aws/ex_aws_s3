@@ -8,6 +8,7 @@ v2.2.0 (2021-05-08)
 - Use common usage doc between module and readme
 - Badges and more badges!
 - Various documentation fixes/tweaks
+- Add multipart upload error handling
 
 v2.1.0 (2020-11-18)
 
