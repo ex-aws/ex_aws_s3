@@ -18,7 +18,7 @@ defmodule ExAws.S3.Mixfile do
       package: package(),
       docs: [main: @name, source_ref: "v#{@version}", source_url: @url],
       dialyzer: [
-        plt_add_apps: [:sweet_xml]
+        plt_add_apps: [:ex_unit, :sweet_xml]
       ]
     ]
   end
