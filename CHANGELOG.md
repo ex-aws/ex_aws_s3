@@ -9,6 +9,7 @@ v2.2.0 (2021-05-08)
 - Badges and more badges!
 - Various documentation fixes/tweaks
 - Add multipart upload error handling
+- Add dialyzer check
 
 v2.1.0 (2020-11-18)
 
