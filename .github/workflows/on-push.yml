@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        otp: ["23.0.4"]
-        elixir: ["1.9.4", "1.10.4", "1.11.3"]
+        otp: ["23.3.3"]
+        elixir: ["1.9.4", "1.10.4", "1.11.4"]
     steps:
       - uses: actions/checkout@v2
       - uses: erlef/setup-elixir@v1
@@ -18,6 +18,8 @@ jobs:
       - run: mix deps.get
       - run: mix compile
       - run: mix format --check-formatted
-        if: matrix.elixir == '1.11.3' # Only check formatting with the latest verison
+        if: matrix.elixir == '1.11.4' # Only check formatting with the latest verison
+      - run: mix dialyzer
+        if: matrix.elixir == '1.11.4' # Only check dialyzer with the latest verison
       - run: mix test
 
