@@ -16,7 +16,10 @@ defmodule ExAws.S3.Mixfile do
       deps: deps(),
       name: @name,
       package: package(),
-      docs: [main: @name, source_ref: "v#{@version}", source_url: @url]
+      docs: [main: @name, source_ref: "v#{@version}", source_url: @url],
+      dialyzer: [
+        plt_add_apps: [:sweet_xml]
+      ]
     ]
   end
 
@@ -41,10 +44,11 @@ defmodule ExAws.S3.Mixfile do
 
   defp deps do
     [
+      {:bypass, "~> 2.1", only: :test},
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:hackney, ">= 0.0.0", only: [:dev, :test]},
       {:sweet_xml, ">= 0.0.0", optional: true},
-      {:bypass, "~> 2.1", only: :test},
       ex_aws()
     ]
   end

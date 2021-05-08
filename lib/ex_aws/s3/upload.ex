@@ -27,9 +27,9 @@ defmodule ExAws.S3.Upload do
 
   @type t :: %__MODULE__{
           src: Enumerable.t(),
-          bucket: binary,
-          path: binary,
-          upload_id: binary,
+          bucket: String.t(),
+          path: String.t(),
+          upload_id: String.t() | nil,
           opts: Keyword.t(),
           service: :s3
         }
