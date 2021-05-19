@@ -435,7 +435,7 @@ defmodule ExAws.S3 do
    "my-bucket",
    "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>"
   )
-  |> ExAws.request
+  |> ExAws.request()
   ```
   """
   @spec put_bucket_versioning(bucket :: binary, version_config :: binary) ::
