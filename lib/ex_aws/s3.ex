@@ -8,7 +8,8 @@ defmodule ExAws.S3 do
   import ExAws.S3.Utils
   alias ExAws.S3.Parsers
 
-  @type acl_opts :: {:acl, canned_acl} | grant
+  @type acl_opt :: {:acl, canned_acl} | grant
+  @type acl_opts :: [acl_opt]
   @type grant ::
           {:grant_read, grantee}
           | {:grant_read_acp, grantee}
@@ -302,7 +303,7 @@ defmodule ExAws.S3 do
   end
 
   @doc "Update or create a bucket access control policy"
-  @spec put_bucket_acl(bucket :: binary, opts :: [acl_opts]) :: ExAws.Operation.S3.t()
+  @spec put_bucket_acl(bucket :: binary, opts :: acl_opts) :: ExAws.Operation.S3.t()
   def put_bucket_acl(bucket, grants) do
     request(:put, bucket, "/", headers: format_acl_headers(grants))
   end
@@ -681,7 +682,8 @@ defmodule ExAws.S3 do
     }
   end
 
-  @type upload_opts :: [{:max_concurrency, pos_integer} | initiate_multipart_upload_opts]
+  @type upload_opt :: {:max_concurrency, pos_integer} | initiate_multipart_upload_opt
+  @type upload_opts :: [upload_opt]
 
   @doc """
   Multipart upload to S3.
@@ -841,7 +843,7 @@ defmodule ExAws.S3 do
           | {:website_redirect_location, binary}
           | {:encryption, encryption_opts}
           | {:meta, amz_meta_opts}
-          | acl_opts
+          | acl_opt
         ]
   @doc "Create an object within a bucket"
   @spec put_object(bucket :: binary, object :: binary, body :: binary) :: ExAws.Operation.S3.t()
@@ -852,7 +854,7 @@ defmodule ExAws.S3 do
   end
 
   @doc "Create or update an object's access control policy"
-  @spec put_object_acl(bucket :: binary, object :: binary, acl :: [acl_opts]) ::
+  @spec put_object_acl(bucket :: binary, object :: binary, acl :: acl_opts) ::
           ExAws.Operation.S3.t()
   def put_object_acl(bucket, object, acl) do
     headers = acl |> Map.new() |> format_acl_headers
@@ -934,7 +936,7 @@ defmodule ExAws.S3 do
           | {:storage_class, :standard | :reduced_redundancy}
           | {:website_redirect_location, binary}
           | {:meta, amz_meta_opts}
-          | acl_opts
+          | acl_opt
         ]
 
   @doc "Copy an object"
@@ -1002,7 +1004,7 @@ defmodule ExAws.S3 do
     request(:put, dest_bucket, dest_object, headers: headers)
   end
 
-  @type initiate_multipart_upload_opts :: [
+  @type initiate_multipart_upload_opt ::
           {:cache_control, binary}
           | {:content_disposition, binary}
           | {:content_encoding, binary}
@@ -1011,8 +1013,8 @@ defmodule ExAws.S3 do
           | {:storage_class, :standard | :reduced_redundancy}
           | {:website_redirect_location, binary}
           | {:encryption, encryption_opts}
-          | acl_opts
-        ]
+          | acl_opt
+  @type initiate_multipart_upload_opts :: [initiate_multipart_upload_opt]
 
   @doc "Initiate a multipart upload"
   @spec initiate_multipart_upload(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t()
