@@ -1,6 +1,13 @@
 # Changelog
 
+v2.3.0 (2021-07-26)
+
+- Docunemtation fixes
+- Fix `upload_opts` typespec
+- Implement `put_bucket_versioning`
+
 v2.2.0 (2021-05-08)
+
 - Increase minimum Elixir version to 1.9
 - Correctly escape XML keys in `delete_multiple_objects/3`
 - Implement `put_bucket_lifecycle`
