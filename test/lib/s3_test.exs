@@ -257,6 +257,31 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#delete_object no options" do
+    expected = %Operation.S3{
+      body: "",
+      bucket: "bucket",
+      path: "object",
+      http_method: :delete,
+      resource: ""
+    }
+
+    assert expected == S3.delete_object("bucket", "object")
+  end
+
+  test "#delete_object version_id option" do
+    expected = %Operation.S3{
+      body: "",
+      bucket: "bucket",
+      http_method: :delete,
+      params: %{"versionId" => "1234"},
+      path: "object",
+      resource: "",
+    }
+
+    assert expected == S3.delete_object("bucket", "object", version_id: "1234")
+  end
+
   test "#delete_multiple_objects" do
     expected = %Operation.S3{
       body:
