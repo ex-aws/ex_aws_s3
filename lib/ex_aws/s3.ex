@@ -110,13 +110,13 @@ defmodule ExAws.S3 do
 
   @doc """
   List objects in bucket
-
+  
   Can be streamed.
-
+  
   ## Examples
   ```
   S3.list_objects("my-bucket") |> ExAws.request
-
+  
   S3.list_objects("my-bucket") |> ExAws.stream!
   S3.list_objects("my-bucket", delimiter: "/", prefix: "backup") |> ExAws.stream!
   S3.list_objects("my-bucket", prefix: "some/inner/location/path") |> ExAws.stream!
@@ -150,13 +150,13 @@ defmodule ExAws.S3 do
 
   @doc """
   List objects in bucket
-
+  
   Can be streamed.
-
+  
   ## Examples
   ```
   S3.list_objects_v2("my-bucket") |> ExAws.request
-
+  
   S3.list_objects_v2("my-bucket") |> ExAws.stream!
   S3.list_objects_v2("my-bucket", delimiter: "/", prefix: "backup") |> ExAws.stream!
   S3.list_objects_v2("my-bucket", prefix: "some/inner/location/path") |> ExAws.stream!
@@ -325,16 +325,16 @@ defmodule ExAws.S3 do
 
   @doc """
   Update or create a bucket lifecycle configuration
-
+  
   ## Live-Cycle Rule Format
-
+  
       %{
         # Unique id for the rule (max. 255 chars, max. 1000 rules allowed)
         id: "123",
-
+  
         # Disabled rules are not executed
         enabled: true,
-
+  
         # Filters
         # Can be based on prefix, object tag(s), both or none
         filter: %{
@@ -343,7 +343,7 @@ defmodule ExAws.S3 do
             "key" => "value"
           }
         },
-
+  
         # Actions
         # https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#intro-lifecycle-rules-actions
         actions: %{
@@ -367,7 +367,7 @@ defmodule ExAws.S3 do
           }
         }
       }
-
+  
   """
   @spec put_bucket_lifecycle(bucket :: binary, lifecycle_rules :: list(map())) ::
           ExAws.Operation.S3.t()
@@ -429,7 +429,7 @@ defmodule ExAws.S3 do
 
   @doc """
   Update or create a bucket versioning configuration
-
+  
   ## Example
   ```
   ExAws.S3.put_bucket_versioning(
@@ -465,9 +465,15 @@ defmodule ExAws.S3 do
           | {:x_amz_expected_bucket_owner, binary}
           | {:version_id, binary}
   @type delete_object_opts :: [delete_object_opt]
-  @spec delete_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
-  @spec delete_object(bucket :: binary, object :: binary, opts :: delete_object_opts) :: ExAws.Operation.S3.t
-  @request_headers [:x_amz_mfa, :x_amz_request_payer, :x_amz_bypass_governance_retention, :x_amz_expected_bucket_owner]
+  @spec delete_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t()
+  @spec delete_object(bucket :: binary, object :: binary, opts :: delete_object_opts) ::
+          ExAws.Operation.S3.t()
+  @request_headers [
+    :x_amz_mfa,
+    :x_amz_request_payer,
+    :x_amz_bypass_governance_retention,
+    :x_amz_expected_bucket_owner
+  ]
   def delete_object(bucket, object, opts \\ []) do
     opts = opts |> Map.new()
 
@@ -491,7 +497,7 @@ defmodule ExAws.S3 do
 
   @doc """
   Delete multiple objects within a bucket
-
+  
   Limited to 1000 objects.
   """
   @spec delete_multiple_objects(
@@ -541,12 +547,12 @@ defmodule ExAws.S3 do
 
   @doc """
   Delete all listed objects.
-
+  
   When performed, this function will continue making `delete_multiple_objects`
   requests deleting 1000 objects at a time until all are deleted.
-
+  
   Can be streamed.
-
+  
   ## Example
   ```
   stream = ExAws.S3.list_objects(bucket(), prefix: "some/prefix") |> ExAws.stream!() |> Stream.map(& &1.key)
@@ -580,7 +586,7 @@ defmodule ExAws.S3 do
         ]
   @doc """
   Get an object from a bucket
-
+  
   ## Examples
   ```
   S3.get_object("my-bucket", "image.png")
@@ -634,26 +640,26 @@ defmodule ExAws.S3 do
 
   @doc """
   Download an S3 object to a file.
-
+  
   This operation downloads multiple parts of an S3 object concurrently, allowing
   you to maximize throughput.
-
+  
   Defaults to a concurrency of 8, chunk size of 1MB, and a timeout of 1 minute.
-
+  
   ### Streaming to memory
-
+  
   In order to use `ExAws.stream!/2`, the third `dest` parameter must be set to `:memory`.
   An example would be like the following:
-
+  
       ExAws.S3.download_file("example-bucket", "path/to/file.txt", :memory)
       |> ExAws.stream!()
-
+  
   Note that **this won't start fetching anything immediately** since it returns an Elixir `Stream`.
-
+  
   #### Streaming by line
-
+  
   Streaming by line can be done with `Stream.chunk_while/4`. Here is an example:
-
+  
       # Returns a stream which grabs chunks of data from S3 as specified in `opts`
       # but processes the stream line by line. For example, the default chunk
       # size of 1MB means requests for bytes from S3 will ask for 1MB sizes (to be downloaded)
@@ -666,11 +672,11 @@ defmodule ExAws.S3 do
         # |> StreamGzip.gunzip()
         |> Stream.chunk_while("", &chunk_fun/2, &after_fun/1)
       end
-
+  
       def chunk_fun(chunk, acc) do
         split_chunk(acc, chunk) || split_chunk(chunk, "")
       end
-
+  
       defp split_chunk("", _append_remaining), do: nil
       defp split_chunk(string, append_remaining) do
         case String.split(string, "\\n", parts: 2) do
@@ -680,7 +686,7 @@ defmodule ExAws.S3 do
             {:cont, l, remaining <> append_remaining}
         end
       end
-
+  
       def after_fun(""), do: {:cont, ""}
       def after_fun(acc), do: {:cont, acc, ""}
   """
@@ -706,11 +712,11 @@ defmodule ExAws.S3 do
 
   @doc """
   Multipart upload to S3.
-
+  
   Handles initialization, uploading parts concurrently, and multipart upload completion.
-
+  
   ## Uploading a stream
-
+  
   Streams that emit binaries may be uploaded directly to S3. Each binary will be uploaded
   as a chunk, so it must be at least 5 megabytes in size. The `S3.Upload.stream_file`
   helper takes care of reading the file in 5 megabyte chunks.
@@ -720,17 +726,17 @@ defmodule ExAws.S3 do
   |> S3.upload("my-bucket", "path/on/s3")
   |> ExAws.request! #=> :done
   ```
-
+  
   ## Options
-
+  
   These options are specific to this function
   * See `Task.async_stream/5`'s `:max_concurrency` and `:timeout` options.
     * `:max_concurrency` - only applies when uploading a stream. Sets the maximum number of tasks to run at the same time. Defaults to `4`
     * `:timeout` - the maximum amount of time (in milliseconds) each task is allowed to execute for. Defaults to `30_000`.
-
+  
   All other options (ex. `:content_type`) are passed through to
   `ExAws.S3.initiate_multipart_upload/3`.
-
+  
   """
   @spec upload(
           source :: Enumerable.t(),
@@ -882,11 +888,11 @@ defmodule ExAws.S3 do
 
   @doc """
   Add a set of tags to an existing object
-
+  
   ## Options
-
+  
   - `:version_id` - The versionId of the object that the tag-set will be added to.
-
+  
   """
   @spec put_object_tagging(
           bucket :: binary,
@@ -1191,17 +1197,17 @@ defmodule ExAws.S3 do
 
   @doc """
   Generate a pre-signed URL for an object.
-
+  
   When option param `:virtual_host` is `true`, the bucket name will be used as
   the hostname. This will cause the returned URL to be 'http' and not 'https'.
-
+  
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
-
+  
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
   a multipart upload directly from the browser.
-
+  
   Signed headers can be added to the url by setting option param `:headers` to
   a list of `{"key", "value"}` pairs.
   """

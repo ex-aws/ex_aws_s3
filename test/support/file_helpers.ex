@@ -14,7 +14,7 @@ defmodule Support.FileHelpers do
   @doc """
   Executes the given function in a temp directory
   tailored for this test case and test.
-
+  
   Note: It doesn't appear this can be run with `use ExUnit.Case, async: true`
   """
   defmacro in_tmp(fun) do
