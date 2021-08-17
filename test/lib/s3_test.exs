@@ -257,6 +257,44 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#delete_object no options" do
+    expected = %Operation.S3{
+      body: "",
+      bucket: "bucket",
+      path: "object",
+      http_method: :delete,
+      resource: ""
+    }
+
+    assert expected == S3.delete_object("bucket", "object")
+  end
+
+  test "#delete_object version_id option" do
+    expected = %Operation.S3{
+      body: "",
+      bucket: "bucket",
+      http_method: :delete,
+      params: %{"versionId" => "1234"},
+      headers: %{
+        "x-amz-mfa" => "MFA",
+        "x-amz-request-payer" => "RequestPayer",
+        "x-amz-bypass-governance-retention" => "BypassGovernanceRetention",
+        "x-amz-expected-bucket-owner" => "ExpectedBucketOwner"
+      },
+      path: "object",
+      resource: ""
+    }
+
+    assert expected ==
+             S3.delete_object("bucket", "object",
+               version_id: "1234",
+               x_amz_mfa: "MFA",
+               x_amz_request_payer: "RequestPayer",
+               x_amz_bypass_governance_retention: "BypassGovernanceRetention",
+               x_amz_expected_bucket_owner: "ExpectedBucketOwner"
+             )
+  end
+
   test "#delete_multiple_objects" do
     expected = %Operation.S3{
       body:

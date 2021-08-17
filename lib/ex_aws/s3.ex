@@ -458,9 +458,34 @@ defmodule ExAws.S3 do
   ###########
 
   @doc "Delete an object within a bucket"
+  @type delete_object_opt ::
+          {:x_amz_mfa, binary}
+          | {:x_amz_request_payer, binary}
+          | {:x_amz_bypass_governance_retention, binary}
+          | {:x_amz_expected_bucket_owner, binary}
+          | {:version_id, binary}
+  @type delete_object_opts :: [delete_object_opt]
   @spec delete_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t()
+  @spec delete_object(bucket :: binary, object :: binary, opts :: delete_object_opts) ::
+          ExAws.Operation.S3.t()
+  @request_headers [
+    :x_amz_mfa,
+    :x_amz_request_payer,
+    :x_amz_bypass_governance_retention,
+    :x_amz_expected_bucket_owner
+  ]
   def delete_object(bucket, object, opts \\ []) do
-    request(:delete, bucket, object, headers: opts |> Map.new())
+    opts = opts |> Map.new()
+
+    params =
+      opts
+      |> format_and_take([:version_id])
+
+    headers =
+      opts
+      |> format_and_take(@request_headers)
+
+    request(:delete, bucket, object, headers: headers, params: params)
   end
 
   @doc "Remove the entire tag set from the specified object"
