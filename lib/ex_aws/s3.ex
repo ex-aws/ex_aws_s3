@@ -46,6 +46,14 @@ defmodule ExAws.S3 do
           | {:headers, [{binary, binary}]}
         ]
 
+  @type presigned_post_opts :: [
+          {:expires_in, integer}
+          | {:acl, binary | {:starts_with, binary}}
+          | {:content_length_range, integer, integer}
+          | {:key, binary | {:starts_with, binary}}
+          | {:custom_conditions, [any()]}
+        ]
+
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
 
   ## Buckets
@@ -1251,6 +1259,41 @@ defmodule ExAws.S3 do
           headers
         )
     end
+  end
+
+  @spec presigned_post(
+          config :: map,
+          bucket :: binary,
+          key :: binary | nil,
+          opts :: presigned_post_opts()
+        ) :: {:ok, binary} | {:error, binary}
+  def presigned_post(config, bucket, key, opts \\ []) do
+    expires_in = Keyword.get(opts, :expires_in, 3600)
+    {:ok, datetime} = DateTime.now("Etc/UTC")
+    expiration_date = DateTime.add(datetime, expires_in, :second)
+
+    datetime = datetime_to_erlang_time(datetime)
+
+    credential = ExAws.Auth.Credentials.generate_credential_v4("s3", config, datetime)
+
+    policy =
+      build_amz_post_policy(datetime, expiration_date, bucket, credential, opts, key)
+      |> config.json_codec.encode!
+      |> Base.encode64()
+
+    signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, datetime, policy)
+
+    %{
+      url: build_bucket_url(config, bucket),
+      fields: %{
+        "key" => key,
+        "X-Amz-Algorithm" => "AWS4-HMAC-SHA256",
+        "X-Amz-Credential" => credential,
+        "X-Amz-Date" => ExAws.Auth.Utils.amz_date(datetime),
+        "Policy" => policy,
+        "X-Amz-Signature" => signature
+      }
+    }
   end
 
   defp put_bucket_body("us-east-1"), do: ""
