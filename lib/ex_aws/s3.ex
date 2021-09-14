@@ -54,6 +54,11 @@ defmodule ExAws.S3 do
           | {:custom_conditions, [any()]}
         ]
 
+  @type presigned_post_result :: %{
+          url: binary,
+          fields: %{binary => binary}
+        }
+
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
 
   ## Buckets
@@ -1266,7 +1271,7 @@ defmodule ExAws.S3 do
           bucket :: binary,
           key :: binary | nil,
           opts :: presigned_post_opts()
-        ) :: {:ok, binary} | {:error, binary}
+        ) :: presigned_post_result()
   def presigned_post(config, bucket, key, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
     {:ok, datetime} = DateTime.now("Etc/UTC")

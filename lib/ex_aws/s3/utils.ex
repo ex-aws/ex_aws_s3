@@ -288,13 +288,13 @@ defmodule ExAws.S3.Utils do
   end
 
   def build_amz_post_policy(
-         datetime,
-         expiration_date,
-         bucket,
-         credential,
-         opts,
-         exact_key \\ nil
-       ) do
+        datetime,
+        expiration_date,
+        bucket,
+        credential,
+        opts,
+        exact_key \\ nil
+      ) do
     key = Keyword.get(opts, :key, exact_key)
     content_length_range = Keyword.get(opts, :content_length_range, nil)
     acl = Keyword.get(opts, :acl, nil)
