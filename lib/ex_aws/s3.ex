@@ -707,7 +707,10 @@ defmodule ExAws.S3 do
     }
   end
 
-  @type upload_opt :: {:max_concurrency, pos_integer} | initiate_multipart_upload_opt
+  @type upload_opt ::
+          {:max_concurrency, pos_integer}
+          | {:timeout, pos_integer}
+          | initiate_multipart_upload_opt
   @type upload_opts :: [upload_opt]
 
   @doc """
