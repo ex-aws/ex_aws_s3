@@ -535,7 +535,7 @@ defmodule ExAws.S3Test do
     assert policy = post_data.fields["Policy"]
 
     assert {:ok, json} = Base.decode64(policy)
-    assert {:ok, policy} = config.json_codec.decode(json)
+    assert {:ok, policy} = config().json_codec.decode(json)
 
     conditions = policy["conditions"]
 
@@ -551,7 +551,7 @@ defmodule ExAws.S3Test do
 
     assert policy = post_data.fields["Policy"]
     assert {:ok, json} = Base.decode64(policy)
-    assert {:ok, policy} = config.json_codec.decode(json)
+    assert {:ok, policy} = config().json_codec.decode(json)
 
     conditions = policy["conditions"]
 
@@ -570,7 +570,7 @@ defmodule ExAws.S3Test do
 
     assert policy = post_data.fields["Policy"]
     assert {:ok, json} = Base.decode64(policy)
-    assert {:ok, policy} = config.json_codec.decode(json)
+    assert {:ok, policy} = config().json_codec.decode(json)
 
     conditions = policy["conditions"]
 

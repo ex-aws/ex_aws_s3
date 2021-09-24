@@ -282,10 +282,16 @@ defmodule ExAws.S3.Utils do
     "#{config[:scheme]}#{bucket_name}.#{config[:host]}"
   end
 
-  def datetime_to_erlang_time(datetime) do
-    {{datetime.year, datetime.month, datetime.day},
-     {datetime.hour, datetime.minute, datetime.second}}
-  end
+  defp acl_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
+  defp acl_condition(nil), do: []
+  defp acl_condition(acl) when is_binary(acl), do: %{"acl" => acl}
+
+  defp key_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
+  defp key_condition(nil), do: []
+  defp key_condition(key) when is_binary(key), do: [%{"key" => key}]
+
+  def content_length_condition([min, max]), do: [["content-length-range", min, max]]
+  def content_length_condition(nil), do: []
 
   def build_amz_post_policy(
         datetime,
@@ -300,26 +306,6 @@ defmodule ExAws.S3.Utils do
     acl = Keyword.get(opts, :acl, nil)
     custom_conditions = Keyword.get(opts, :custom_conditions, [])
 
-    key_condition =
-      case key do
-        {:starts_with, starts_with} -> [["starts-with", "$key", starts_with]]
-        nil -> []
-        key when is_binary(key) -> [%{"key" => key}]
-      end
-
-    content_length_condition =
-      case content_length_range do
-        [min, max] -> [["content-length-range", min, max]]
-        nil -> []
-      end
-
-    acl_condition =
-      case acl do
-        {:starts_with, starts_with} -> [["starts-with", "acl", starts_with]]
-        nil -> []
-        acl when is_binary(acl) -> %{"acl" => acl}
-      end
-
     %{
       "expiration" => DateTime.to_iso8601(expiration_date),
       "conditions" =>
@@ -328,7 +314,15 @@ defmodule ExAws.S3.Utils do
           %{"X-Amz-Credential" => credential},
           %{"X-Amz-Date" => ExAws.Auth.Utils.amz_date(datetime)},
           %{"bucket" => bucket}
-        ] ++ key_condition ++ content_length_condition ++ acl_condition ++ custom_conditions
+        ] ++
+          key_condition(key) ++
+          content_length_condition(content_length_range) ++
+          acl_condition(acl) ++ custom_conditions
     }
+  end
+
+  def datetime_to_erlang_time(datetime) do
+    {{datetime.year, datetime.month, datetime.day},
+     {datetime.hour, datetime.minute, datetime.second}}
   end
 end

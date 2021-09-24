@@ -1276,14 +1276,13 @@ defmodule ExAws.S3 do
     expires_in = Keyword.get(opts, :expires_in, 3600)
     {:ok, datetime} = DateTime.now("Etc/UTC")
     expiration_date = DateTime.add(datetime, expires_in, :second)
-
     datetime = datetime_to_erlang_time(datetime)
 
     credential = ExAws.Auth.Credentials.generate_credential_v4("s3", config, datetime)
 
     policy =
       build_amz_post_policy(datetime, expiration_date, bucket, credential, opts, key)
-      |> config.json_codec.encode!
+      |> config.json_codec.encode!()
       |> Base.encode64()
 
     signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, datetime, policy)
