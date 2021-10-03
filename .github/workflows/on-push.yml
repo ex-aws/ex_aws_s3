@@ -18,8 +18,8 @@ jobs:
       - run: mix deps.get
       - run: mix compile
       - run: mix format --check-formatted
-        if: matrix.elixir == '1.11.4' # Only check formatting with the latest verison
+        if: matrix.elixir == '1.11.4' # Only check formatting with the latest version
       - run: mix dialyzer
-        if: matrix.elixir == '1.11.4' # Only check dialyzer with the latest verison
+        if: matrix.elixir == '1.11.4' # Only check dialyzer with the latest version
       - run: mix test
 
