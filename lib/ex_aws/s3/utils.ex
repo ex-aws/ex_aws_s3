@@ -277,4 +277,52 @@ defmodule ExAws.S3.Utils do
   def sanitized_port_component(%{port: port}) when port in @excluded_ports, do: ""
   def sanitized_port_component(%{port: port}), do: ":#{port}"
   def sanitized_port_component(_), do: ""
+
+  def build_bucket_url(config, bucket_name) do
+    "#{config[:scheme]}#{bucket_name}.#{config[:host]}"
+  end
+
+  defp acl_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
+  defp acl_condition(nil), do: []
+  defp acl_condition(acl) when is_binary(acl), do: %{"acl" => acl}
+
+  defp key_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
+  defp key_condition(nil), do: []
+  defp key_condition(key) when is_binary(key), do: [%{"key" => key}]
+
+  def content_length_condition([min, max]), do: [["content-length-range", min, max]]
+  def content_length_condition(nil), do: []
+
+  def build_amz_post_policy(
+        datetime,
+        expiration_date,
+        bucket,
+        credential,
+        opts,
+        exact_key \\ nil
+      ) do
+    key = Keyword.get(opts, :key, exact_key)
+    content_length_range = Keyword.get(opts, :content_length_range, nil)
+    acl = Keyword.get(opts, :acl, nil)
+    custom_conditions = Keyword.get(opts, :custom_conditions, [])
+
+    %{
+      "expiration" => DateTime.to_iso8601(expiration_date),
+      "conditions" =>
+        [
+          %{"X-Amz-Algorithm" => "AWS4-HMAC-SHA256"},
+          %{"X-Amz-Credential" => credential},
+          %{"X-Amz-Date" => ExAws.Auth.Utils.amz_date(datetime)},
+          %{"bucket" => bucket}
+        ] ++
+          key_condition(key) ++
+          content_length_condition(content_length_range) ++
+          acl_condition(acl) ++ custom_conditions
+    }
+  end
+
+  def datetime_to_erlang_time(datetime) do
+    {{datetime.year, datetime.month, datetime.day},
+     {datetime.hour, datetime.minute, datetime.second}}
+  end
 end

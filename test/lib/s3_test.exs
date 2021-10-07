@@ -525,6 +525,68 @@ defmodule ExAws.S3Test do
     assert expected == S3.delete_object_tagging(bucket, object)
   end
 
+  test "#presigned_post simple policy" do
+    bucket = "my-bucket"
+    key = "test.txt"
+
+    post_data = S3.presigned_post(ExAws.Config.new(:s3), bucket, key)
+
+    assert URI.parse(post_data.url).scheme != nil
+    assert policy = post_data.fields["Policy"]
+
+    assert {:ok, json} = Base.decode64(policy)
+    assert {:ok, policy} = config().json_codec.decode(json)
+
+    conditions = policy["conditions"]
+
+    assert Enum.find(conditions, & &1["key"]) == %{"key" => key}
+    assert Enum.find(conditions, & &1["bucket"]) == %{"bucket" => bucket}
+  end
+
+  test "#presigned_post custom key" do
+    bucket = "my-bucket"
+    key = {:starts_with, "prefix/"}
+
+    post_data = S3.presigned_post(ExAws.Config.new(:s3), bucket, nil, key: key)
+
+    assert policy = post_data.fields["Policy"]
+    assert {:ok, json} = Base.decode64(policy)
+    assert {:ok, policy} = config().json_codec.decode(json)
+
+    conditions = policy["conditions"]
+
+    assert Enum.find(conditions, &is_list(&1)) == ["starts-with", "$key", "prefix/"]
+  end
+
+  test "#presigned_post custom policy" do
+    bucket = "my-bucket"
+    key = "text.jpg"
+
+    post_data =
+      S3.presigned_post(ExAws.Config.new(:s3), bucket, key,
+        custom_conditions: [["starts-with", "$Content-Type", "image/"]],
+        content_length_range: [10, 20]
+      )
+
+    assert policy = post_data.fields["Policy"]
+    assert {:ok, json} = Base.decode64(policy)
+    assert {:ok, policy} = config().json_codec.decode(json)
+
+    conditions = policy["conditions"]
+
+    assert Enum.find(conditions, &(is_list(&1) && Enum.at(&1, 0) == "starts-with")) == [
+             "starts-with",
+             "$Content-Type",
+             "image/"
+           ]
+
+    assert Enum.find(conditions, &(is_list(&1) && Enum.at(&1, 0) == "content-length-range")) == [
+             "content-length-range",
+             10,
+             20
+           ]
+  end
+
   @spec assert_pre_signed_url(
           url,
           expected_scheme_host_path,
