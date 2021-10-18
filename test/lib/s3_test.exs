@@ -564,6 +564,7 @@ defmodule ExAws.S3Test do
 
     post_data =
       S3.presigned_post(ExAws.Config.new(:s3), bucket, key,
+        acl: "public-read",
         custom_conditions: [["starts-with", "$Content-Type", "image/"]],
         content_length_range: [10, 20]
       )
@@ -585,6 +586,10 @@ defmodule ExAws.S3Test do
              10,
              20
            ]
+
+    assert Enum.find(conditions, &(is_map(&1) && Map.has_key?(&1, "acl"))) == %{
+             "acl" => "public-read"
+           }
   end
 
   @spec assert_pre_signed_url(

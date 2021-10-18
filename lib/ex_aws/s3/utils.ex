@@ -284,7 +284,7 @@ defmodule ExAws.S3.Utils do
 
   defp acl_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
   defp acl_condition(nil), do: []
-  defp acl_condition(acl) when is_binary(acl), do: %{"acl" => acl}
+  defp acl_condition(acl) when is_binary(acl), do: [%{"acl" => acl}]
 
   defp key_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
   defp key_condition(nil), do: []
