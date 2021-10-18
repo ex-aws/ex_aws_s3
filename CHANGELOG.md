@@ -1,5 +1,11 @@
 # Changelog
 
+v2.3.1 (2021-10-18)
+
+- Add `presigned_post` function
+- Add `version_id` options to `delete_object`
+- Add `timeout` to `upload_opts` typespec
+
 v2.3.0 (2021-07-26)
 
 - Docunemtation fixes
