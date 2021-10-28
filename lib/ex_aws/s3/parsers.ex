@@ -96,6 +96,17 @@ if Code.ensure_loaded?(SweetXml) do
     end
     def parse_list_multipart_uploads(val), do: val
 
+    def parse_list_parts({:ok, %{body: xml} = resp}) do
+      parsed_body = SweetXml.xpath(xml, ~x"//ListPartsResult",
+        parts: [~x"./Part"l,
+          part_number: ~x"./PartNumber/text()"s,
+          etag: ~x"./ETag/text()"s,
+          size: ~x"./Size/text()"s,
+        ]
+      )
+      {:ok, %{resp | body: parsed_body}}
+    end
+
     def parse_list_parts(val), do: val
 
     def parse_object_tagging({:ok, resp = %{body: xml}}) do
