@@ -155,7 +155,9 @@ defmodule ExAws.S3Test do
         "x-amz-copy-source" => "/src-bucket/src-object",
         "x-amz-server-side-encryption-customer-algorithm" => "md5",
         "x-amz-copy-source-server-side-encryption-customer-algorithm" => "md5",
-        "x-amz-meta-foo" => "sqiggles"
+        "x-amz-meta-foo" => "sqiggles",
+        "x-amz-tagging" => "foo=foo&bar=bar",
+        "x-amz-tagging-directive" => :REPLACE
       },
       path: "dest-object",
       http_method: :put
@@ -170,7 +172,9 @@ defmodule ExAws.S3Test do
                source_encryption: [customer_algorithm: "md5"],
                acl: :public_read,
                destination_encryption: [customer_algorithm: "md5"],
-               meta: [foo: "sqiggles"]
+               meta: [foo: "sqiggles"],
+               tagging: "foo=foo&bar=bar",
+               tagging_directive: :REPLACE
              )
   end
 
