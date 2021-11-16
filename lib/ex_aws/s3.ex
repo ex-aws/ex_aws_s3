@@ -1286,12 +1286,14 @@ defmodule ExAws.S3 do
     # security_token will be present when temporary credentials are used
     {opts, security_token_fields} =
       if config[:security_token] do
+        security_token_config = [%{"X-Amz-Security-Token" => config[:security_token]}]
+
         {
-          Keyword.put(
+          Keyword.update(
             opts,
             :custom_conditions,
-            Keyword.get(opts, :custom_conditions, []) ++
-              [%{"X-Amz-Security-Token" => config[:security_token]}]
+            security_token_config,
+            &(&1 ++ security_token_config)
           ),
           %{"X-Amz-Security-Token" => config[:security_token]}
         }
