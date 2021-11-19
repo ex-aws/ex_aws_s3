@@ -1283,6 +1283,24 @@ defmodule ExAws.S3 do
 
     credential = ExAws.Auth.Credentials.generate_credential_v4("s3", config, datetime)
 
+    # security_token will be present when temporary credentials are used
+    {opts, security_token_fields} =
+      if config[:security_token] do
+        security_token_config = [%{"X-Amz-Security-Token" => config[:security_token]}]
+
+        {
+          Keyword.update(
+            opts,
+            :custom_conditions,
+            security_token_config,
+            &(&1 ++ security_token_config)
+          ),
+          %{"X-Amz-Security-Token" => config[:security_token]}
+        }
+      else
+        {opts, %{}}
+      end
+
     policy =
       build_amz_post_policy(datetime, expiration_date, bucket, credential, opts, key)
       |> config.json_codec.encode!()
@@ -1292,14 +1310,16 @@ defmodule ExAws.S3 do
 
     %{
       url: build_bucket_url(config, bucket),
-      fields: %{
-        "key" => key,
-        "X-Amz-Algorithm" => "AWS4-HMAC-SHA256",
-        "X-Amz-Credential" => credential,
-        "X-Amz-Date" => ExAws.Auth.Utils.amz_date(datetime),
-        "Policy" => policy,
-        "X-Amz-Signature" => signature
-      }
+      fields:
+        %{
+          "key" => key,
+          "X-Amz-Algorithm" => "AWS4-HMAC-SHA256",
+          "X-Amz-Credential" => credential,
+          "X-Amz-Date" => ExAws.Auth.Utils.amz_date(datetime),
+          "Policy" => policy,
+          "X-Amz-Signature" => signature
+        }
+        |> Map.merge(security_token_fields)
     }
   end
 
