@@ -15,7 +15,7 @@ defmodule ExAws.S3.Utils do
     :expires,
     :content_md5
   ]
-  @amz_headers [:storage_class, :website_redirect_location, :tagging]
+  @amz_headers [:storage_class, :website_redirect_location, :tagging, :tagging_directive]
   def put_object_headers(opts) do
     opts = opts |> Map.new()
 
