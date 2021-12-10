@@ -98,6 +98,86 @@ defmodule ExAws.S3.ParserTest do
     assert "bUCMhxUCGCA0GiTAhTj6cq2rChItfIMYBgO7To9yiuUyDk4CWqhtHPx8cGkgjzyavE2aW6HvhQgu9pvDB3.oX73RC7N3zM9dSU3mecTndVRHQLJCAsySsT6lXRd2Id2a" == upload_id
   end
 
+  test "#parse_list_parts parses empty parts list" do
+    response = ~S"""
+    <?xml version="1.0" encoding="UTF-8"?>
+    <ListPartsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <Bucket>name_of_my_bucket</Bucket>
+      <Key>name_of_my_key.ext</Key>
+      <UploadId>e3gloTamzXlqzgRfKIXrFBhnxCfM35jhktoh.wduDUJHy61R_hjglrx_rLguDGxmOvPeDfzJEK7mxgx7eRwPs9XbYXVmDywrRjbJSmqr.McfkCRDjuI4cdB72IYzfFJl</UploadId>
+      <Initiator>
+        <ID>arn:aws:iam::123456789012:user/username</ID>
+        <DisplayName>username</DisplayName>
+      </Initiator>
+      <Owner>
+        <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
+        <DisplayName>noone@example.com</DisplayName>
+      </Owner>
+      <StorageClass>STANDARD</StorageClass>
+      <PartNumberMarker>0</PartNumberMarker>
+      <NextPartNumberMarker>0</NextPartNumberMarker>
+      <MaxParts>1000</MaxParts>
+      <IsTruncated>false</IsTruncated>
+    </ListPartsResult>
+    """
+
+    assert {:ok, %{body: body}} = ExAws.S3.Parsers.parse_list_parts({:ok, %{body: response}})
+    assert body == %{parts: []}
+  end
+
+  test "#parse_list_parts parses parts of the multipart upload" do
+    response = ~S"""
+    <?xml version="1.0" encoding="UTF-8"?>
+    <ListPartsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <Bucket>name_of_my_bucket</Bucket>
+      <Key>name_of_my_key.ext</Key>
+      <UploadId>e3gloTamzXlqzgRfKIXrFBhnxCfM35jhktoh.wduDUJHy61R_hjglrx_rLguDGxmOvPeDfzJEK7mxgx7eRwPs9XbYXVmDywrRjbJSmqr.McfkCRDjuI4cdB72IYzfFJl</UploadId>
+      <Initiator>
+        <ID>arn:aws:iam::123456789012:user/username</ID>
+        <DisplayName>username</DisplayName>
+      </Initiator>
+      <Owner>
+        <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
+        <DisplayName>noone@example.com</DisplayName>
+      </Owner>
+      <StorageClass>STANDARD</StorageClass>
+      <PartNumberMarker>0</PartNumberMarker>
+      <NextPartNumberMarker>2</NextPartNumberMarker>
+      <MaxParts>1000</MaxParts>
+      <IsTruncated>false</IsTruncated>
+      <Part>
+        <PartNumber>1</PartNumber>
+        <LastModified>2021-12-10T18:43:58.000Z</LastModified>
+        <ETag>&quot;d53f6b1e2a3b54515f8dbcbcbe3aef9e&quot;</ETag>
+        <Size>10000000</Size>
+      </Part>
+      <Part>
+        <PartNumber>2</PartNumber>
+        <LastModified>2021-12-10T18:43:47.000Z</LastModified>
+        <ETag>&quot;d1cae2efbf9bfdec76ef78e5c2dd41e5&quot;</ETag>
+        <Size>3811508</Size>
+      </Part>
+    </ListPartsResult>
+    """
+
+    assert {:ok, %{body: body}} = ExAws.S3.Parsers.parse_list_parts({:ok, %{body: response}})
+
+    assert body == %{
+             parts: [
+               %{
+                 part_number: "1",
+                 etag: ~s("d53f6b1e2a3b54515f8dbcbcbe3aef9e"),
+                 size: "10000000"
+               },
+               %{
+                 part_number: "2",
+                 etag: ~s("d1cae2efbf9bfdec76ef78e5c2dd41e5"),
+                 size: "3811508"
+               }
+             ]
+           }
+  end
+
   test "#parse_object_tagging parses empty tagset" do
     response = ~S"""
     <?xml version="1.0" encoding="UTF-8"?>
