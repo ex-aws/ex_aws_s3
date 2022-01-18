@@ -1240,6 +1240,7 @@ defmodule ExAws.S3 do
     query_params = Keyword.get(opts, :query_params, [])
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
+    s3_bucket_endpoint = Keyword.get(opts, :s3_bucket_endpoint, false)
     headers = Keyword.get(opts, :headers, [])
 
     {config, virtual_host} =
@@ -1252,7 +1253,7 @@ defmodule ExAws.S3 do
         {:error, "expires_in_exceeds_one_week"}
 
       false ->
-        url = url_to_sign(bucket, object, config, virtual_host)
+        url = url_to_sign(bucket, object, config, virtual_host, s3_bucket_endpoint)
         datetime = :calendar.universal_time()
 
         ExAws.Auth.presigned_url(
@@ -1333,12 +1334,16 @@ defmodule ExAws.S3 do
     """
   end
 
-  defp url_to_sign(bucket, object, config, virtual_host) do
+  defp url_to_sign(bucket, object, config, virtual_host, s3_bucket_endpoint) do
     port = sanitized_port_component(config)
     object = ensure_slash(object)
 
     case virtual_host do
-      true -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
+      true ->
+        case s3_bucket_endpoint do
+          true -> "#{config[:scheme]}#{bucket}#{port}#{object}"
+          false -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
+        end
       false -> "#{config[:scheme]}#{config[:host]}#{port}/#{bucket}#{object}"
     end
   end
