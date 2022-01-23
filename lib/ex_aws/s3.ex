@@ -1344,7 +1344,9 @@ defmodule ExAws.S3 do
           true -> "#{config[:scheme]}#{bucket}#{port}#{object}"
           false -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
         end
-      false -> "#{config[:scheme]}#{config[:host]}#{port}/#{bucket}#{object}"
+
+      false ->
+        "#{config[:scheme]}#{config[:host]}#{port}/#{bucket}#{object}"
     end
   end
 
