@@ -1214,11 +1214,17 @@ defmodule ExAws.S3 do
   @doc """
   Generate a pre-signed URL for an object.
 
-  When option param `:virtual_host` is `true`, the bucket name will be used as
-  the hostname. This will cause the returned URL to be 'http' and not 'https'.
+  When option param `:virtual_host` is `true`, the bucket name will be used in
+  the hostname, along with the s3 default host which will look like -
+  `<bucket>.s3.<region>.amazonaws.com` host.
+  This will cause the returned URL to be 'http' and not 'https'.
 
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
+
+  When option param `:bucket_as_host` is `true`, the bucket name will be used as
+  the hostname, which will look like `<bucket>.<domain>.com` host.
+  The `bucket_as_host` must be passed along with `virtual_host=true`
 
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
@@ -1240,7 +1246,7 @@ defmodule ExAws.S3 do
     query_params = Keyword.get(opts, :query_params, [])
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
-    s3_bucket_endpoint = Keyword.get(opts, :s3_bucket_endpoint, false)
+    bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
     headers = Keyword.get(opts, :headers, [])
 
     {config, virtual_host} =
@@ -1253,7 +1259,7 @@ defmodule ExAws.S3 do
         {:error, "expires_in_exceeds_one_week"}
 
       false ->
-        url = url_to_sign(bucket, object, config, virtual_host, s3_bucket_endpoint)
+        url = url_to_sign(bucket, object, config, virtual_host, bucket_as_host)
         datetime = :calendar.universal_time()
 
         ExAws.Auth.presigned_url(
@@ -1334,13 +1340,13 @@ defmodule ExAws.S3 do
     """
   end
 
-  defp url_to_sign(bucket, object, config, virtual_host, s3_bucket_endpoint) do
+  defp url_to_sign(bucket, object, config, virtual_host, bucket_as_host) do
     port = sanitized_port_component(config)
     object = ensure_slash(object)
 
     case virtual_host do
       true ->
-        case s3_bucket_endpoint do
+        case bucket_as_host do
           true -> "#{config[:scheme]}#{bucket}#{port}#{object}"
           false -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
         end
