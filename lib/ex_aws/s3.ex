@@ -1222,10 +1222,10 @@ defmodule ExAws.S3 do
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
 
-  When option param `:bucket_as_host` is `true`, the bucket name will be used as
-  the hostname, which will look like `<bucket>.<domain>.com` host.
+  When option param :bucket_as_host is true, the bucket name will be used as the full hostname. 
+  In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
-
+  
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
   a multipart upload directly from the browser.
