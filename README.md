@@ -82,6 +82,17 @@ paths
 |> Stream.run
 ```
 
+### Bucket as host functionality
+#### Examples
+```
+opts = [virtual_host: true, bucket_as_host: true]
+
+ExAws.Config.new(:s3)
+|> S3.presigned_url(:get, "bucket.custom-domain.com", "foo.txt", opts)
+
+{:ok, "https://bucket.custom-domain.com/foo.txt"}
+```
+
 ### Configuration
 
 The `scheme`, `host`, and `port` can be configured to hit alternate endpoints.

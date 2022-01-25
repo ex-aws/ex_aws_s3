@@ -395,6 +395,20 @@ defmodule ExAws.S3Test do
     assert_pre_signed_url(url, "https://bucket.s3.amazonaws.com/foo.txt", "3600")
   end
 
+  test "#presigned_url passing both virtual_host and bucket_as_host options" do
+    opts = [virtual_host: false, bucket_as_host: true]
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", opts)
+    assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo.txt", "3600")
+
+    opts = [virtual_host: true, bucket_as_host: false]
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", opts)
+    assert_pre_signed_url(url, "https://bucket.s3.amazonaws.com/foo.txt", "3600")
+
+    opts = [virtual_host: true, bucket_as_host: true]
+    {:ok, url} = S3.presigned_url(config(), :get, "bucket.custom-domain.com", "foo.txt", opts)
+    assert_pre_signed_url(url, "https://bucket.custom-domain.com/foo.txt", "3600")
+  end
+
   test "#presigned_url passing query_params option" do
     query_params = [
       key_one: "value_one",
