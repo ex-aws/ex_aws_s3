@@ -37,8 +37,8 @@ The vast majority of operations here represent a single operation on S3.
 
 #### Examples
 ```
-S3.list_objects |> ExAws.request! #=> %{body: [list, of, objects]}
-S3.list_objects |> ExAws.stream! |> Enum.to_list #=> [list, of, objects]
+S3.list_objects("my-bucket") |> ExAws.request! #=> %{body: [list, of, objects]}
+S3.list_objects("my-bucket") |> ExAws.stream! |> Enum.to_list #=> [list, of, objects]
 
 S3.put_object("my-bucket", "path/to/bucket", contents) |> ExAws.request!
 ```
