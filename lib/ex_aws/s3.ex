@@ -1116,7 +1116,15 @@ defmodule ExAws.S3 do
     copy_source_if_unmodified_since
     copy_source_if_match
     copy_source_if_none_match)a
-  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, upload_id, part_number, opts) do
+  def upload_part_copy(
+        dest_bucket,
+        dest_object,
+        src_bucket,
+        src_object,
+        upload_id,
+        part_number,
+        opts
+      ) do
     opts = opts |> Map.new()
 
     source_encryption =
@@ -1149,7 +1157,8 @@ defmodule ExAws.S3 do
       end
       |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
 
-      params = %{"uploadId" => upload_id, "partNumber" => part_number}
+    params = %{"uploadId" => upload_id, "partNumber" => part_number}
+
     request(:put, dest_bucket, dest_object, [headers: headers, params: params], %{
       parser: &Parsers.parse_upload_part_copy/1
     })

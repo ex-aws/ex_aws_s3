@@ -87,23 +87,25 @@ if Code.ensure_loaded?(SweetXml) do
     def parse_initiate_multipart_upload(val), do: val
 
     def parse_upload_part_copy({:ok, resp = %{body: xml}}) do
-      parsed_body = xml
-      |> SweetXml.xpath(~x"//CopyPartResult",
-         last_modified: ~x"./LastModified/text()"s,
-         etag: ~x"./ETag/text()"s
-      )
+      parsed_body =
+        xml
+        |> SweetXml.xpath(~x"//CopyPartResult",
+          last_modified: ~x"./LastModified/text()"s,
+          etag: ~x"./ETag/text()"s
+        )
 
       {:ok, %{resp | body: parsed_body}}
     end
 
     def parse_complete_multipart_upload({:ok, resp = %{body: xml}}) do
-      parsed_body = xml
-      |> SweetXml.xpath(~x"//CompleteMultipartUploadResult",
-         location: ~x"./Location/text()"s,
-         bucket: ~x"./Bucket/text()"s,
-         key: ~x"./Key/text()"s,
-         etag: ~x"./ETag/text()"s
-      )
+      parsed_body =
+        xml
+        |> SweetXml.xpath(~x"//CompleteMultipartUploadResult",
+          location: ~x"./Location/text()"s,
+          bucket: ~x"./Bucket/text()"s,
+          key: ~x"./Key/text()"s,
+          etag: ~x"./ETag/text()"s
+        )
 
       {:ok, %{resp | body: parsed_body}}
     end
