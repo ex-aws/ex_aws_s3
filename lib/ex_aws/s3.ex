@@ -1106,13 +1106,9 @@ defmodule ExAws.S3 do
           dest_bucket :: binary,
           dest_object :: binary,
           src_bucket :: binary,
-          src_object :: binary
-        ) :: ExAws.Operation.S3.t()
-  @spec upload_part_copy(
-          dest_bucket :: binary,
-          dest_object :: binary,
-          src_bucket :: binary,
           src_object :: binary,
+          upload_id :: binary,
+          part_number :: pos_integer,
           opts :: upload_part_copy_opts
         ) :: ExAws.Operation.S3.t()
   @amz_headers ~w(
@@ -1120,7 +1116,15 @@ defmodule ExAws.S3 do
     copy_source_if_unmodified_since
     copy_source_if_match
     copy_source_if_none_match)a
-  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, opts \\ []) do
+  def upload_part_copy(
+        dest_bucket,
+        dest_object,
+        src_bucket,
+        src_object,
+        upload_id,
+        part_number,
+        opts
+      ) do
     opts = opts |> Map.new()
 
     source_encryption =
@@ -1153,7 +1157,9 @@ defmodule ExAws.S3 do
       end
       |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
 
-    request(:put, dest_bucket, dest_object, [headers: headers], %{
+    params = %{"uploadId" => upload_id, "partNumber" => part_number}
+
+    request(:put, dest_bucket, dest_object, [headers: headers, params: params], %{
       parser: &Parsers.parse_upload_part_copy/1
     })
   end
@@ -1222,7 +1228,7 @@ defmodule ExAws.S3 do
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
 
-  When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname. 
+  When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname.
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
 

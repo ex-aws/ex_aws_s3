@@ -33,10 +33,19 @@ defmodule ExAws.S3.UploadTest do
 
       case conn do
         %{method: "POST", request_path: ^request_path, query_params: %{"uploadId" => ^upload_id}} ->
+          body = """
+          <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Location>https://s3-eu-west-1.amazonaws.com/my-bucket/#{path}</Location>
+            <Bucket>#{bucket_name}</Bucket>
+            <Key>#{path}</Key>
+            <ETag>&quot;17fbc0a106abbb6f381aac6e331f2a19-1&quot;</ETag>
+          </CompleteMultipartUploadResult>
+          """
+
           send(test_pid, :completed_upload)
 
           conn
-          |> Plug.Conn.send_resp(200, "")
+          |> Plug.Conn.send_resp(200, body)
 
         %{method: "POST", request_path: ^request_path} ->
           body = """
