@@ -1,5 +1,9 @@
 # Changelog
 
+v2.3.2 (2021-12-02)
+
+- Add `x-amz-security-token` field in `presigned_post` when required
+ 
 v2.3.1 (2021-10-18)
 
 - Add `presigned_post` function
