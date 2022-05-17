@@ -683,7 +683,7 @@ defmodule ExAws.S3 do
         |> ExAws.stream!()
         # Uncomment if you need to gunzip (and add dependency :stream_gzip)
         # |> StreamGzip.gunzip()
-        |> Stream.chunk_while("", &chunk_fun/2, &after_fun/1)
+        |> Stream.chunk_while("", &chunk_fun/2, &to_line_stream_after_fun/1)
         |> Stream.concat()
       end
 
