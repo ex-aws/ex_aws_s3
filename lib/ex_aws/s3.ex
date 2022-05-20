@@ -683,25 +683,39 @@ defmodule ExAws.S3 do
         |> ExAws.stream!()
         # Uncomment if you need to gunzip (and add dependency :stream_gzip)
         # |> StreamGzip.gunzip()
-        |> Stream.chunk_while("", &chunk_fun/2, &after_fun/1)
+        |> Stream.chunk_while("", &chunk_fun/2, &to_line_stream_after_fun/1)
+        |> Stream.concat()
       end
 
       def chunk_fun(chunk, acc) do
-        split_chunk(acc, chunk) || split_chunk(chunk, "")
+        to_try = acc <> chunk
+        {elements, acc} = chunk_by_newline(to_try, "\n", [], {0, byte_size(to_try)})
+        {:cont, elements, acc}
       end
 
-      defp split_chunk("", _append_remaining), do: nil
-      defp split_chunk(string, append_remaining) do
-        case String.split(string, "\\n", parts: 2) do
-          [l] ->
-            {:cont, l}
-          [l, remaining] ->
-            {:cont, l, remaining <> append_remaining}
+      defp chunk_by_newline(_string, _newline, elements, {_offset, 0}) do
+        {Enum.reverse(elements), ""}
+      end
+
+      defp chunk_by_newline(string, newline, elements, {offset, length}) do
+        case :binary.match(string, newline, scope: {offset, length}) do
+          {newline_offset, newline_length} ->
+            difference = newline_length + newline_offset - offset
+            element = binary_part(string, offset, difference)
+
+            chunk_by_newline(
+              string,
+              newline,
+              [element | elements],
+              {newline_offset + newline_length, length - difference}
+            )
+          :nomatch ->
+            {Enum.reverse(elements, binary_part(string, offset, length))}
         end
       end
 
-      def after_fun(""), do: {:cont, ""}
-      def after_fun(acc), do: {:cont, acc, ""}
+      defp to_line_stream_after_fun(""), do: {:cont, []}
+      defp to_line_stream_after_fun(acc), do: {:cont, [acc], []}
   """
   @spec download_file(bucket :: binary, path :: binary, dest :: :memory | binary) ::
           __MODULE__.Download.t()
