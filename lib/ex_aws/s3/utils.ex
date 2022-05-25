@@ -177,9 +177,15 @@ defmodule ExAws.S3.Utils do
       },
       expiration: %{
         tag: "Expiration",
-        action_tags: fn %{expired_object_delete_marker: marker} ->
-          marker = if marker, do: "true", else: "false"
-          [["<ExpiredObjectDeleteMarker>", marker, "</ExpiredObjectDeleteMarker>"]]
+        action_tags: fn params ->
+          case params do
+            %{expired_object_delete_marker: marker} ->
+              marker = if marker, do: "true", else: "false"
+              [["<ExpiredObjectDeleteMarker>", marker, "</ExpiredObjectDeleteMarker>"]]
+
+            _ ->
+              []
+          end
         end
       },
       noncurrent_version_transition: %{
