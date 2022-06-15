@@ -92,7 +92,8 @@ defmodule ExAws.S3.Upload do
     {i, etag}
   end
 
-  @spec upload_chunk({binary, pos_integer}, t, ExAws.Config.t()) :: {pos_integer, binary}
+  @spec upload_chunk({binary, pos_integer}, t, ExAws.Config.t()) ::
+          {pos_integer, binary} | {:error, term}
   def upload_chunk({chunk, i}, op, config) do
     case ExAws.S3.upload_part(op.bucket, op.path, op.upload_id, i, chunk, op.opts)
          |> ExAws.request(config) do
