@@ -1,5 +1,11 @@
 # Changelog
 
+v2.3.3 (2022-06-30)
+
+- Update docs
+- Support updating lifecycles for non-versioned buckets
+- Function spec fixes
+
 v2.3.2 (2021-12-03)
 - Support tagging_directive in ExAws.S3.Utils.put_object_headers/1
 - Add x-amz-security-token field in presigned_post when required
