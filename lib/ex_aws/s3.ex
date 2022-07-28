@@ -651,7 +651,7 @@ defmodule ExAws.S3 do
           timeout: pos_integer
         ]
 
-  @doc """
+  @doc ~S"""
   Download an S3 object to a file.
 
   This operation downloads multiple parts of an S3 object concurrently, allowing
@@ -1236,7 +1236,7 @@ defmodule ExAws.S3 do
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
 
-  When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname. 
+  When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname.
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
 
