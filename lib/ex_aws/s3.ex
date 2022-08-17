@@ -194,7 +194,7 @@ defmodule ExAws.S3 do
       |> Map.put("list-type", 2)
 
     request(:get, bucket, "/", [params: params, headers: opts[:headers]],
-      stream_builder: &ExAws.S3.Lazy.stream_objects!(bucket, opts, &1),
+      stream_builder: &ExAws.S3.Lazy.stream_objects_v2!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_list_objects/1
     )
   end
