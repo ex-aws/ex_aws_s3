@@ -1046,7 +1046,7 @@ defmodule ExAws.S3 do
       src_object
       |> String.split("/")
       |> Enum.reject(&(&1 == ""))
-      |> Enum.map(&URI.encode_www_form(&1))
+      |> Enum.map(fn str -> URI.encode(str, &URI.char_unreserved?/1) end)
       |> Enum.join("/")
 
     headers =
@@ -1054,7 +1054,10 @@ defmodule ExAws.S3 do
       |> Map.merge(amz_headers)
       |> Map.merge(source_encryption)
       |> Map.merge(destination_encryption)
-      |> Map.put("x-amz-copy-source", "/#{URI.encode_www_form(src_bucket)}/#{encoded_src_object}")
+      |> Map.put(
+        "x-amz-copy-source",
+        "/#{URI.encode(src_bucket, &URI.char_unreserved?/1)}/#{encoded_src_object}"
+      )
 
     request(:put, dest_bucket, dest_object, headers: headers)
   end
