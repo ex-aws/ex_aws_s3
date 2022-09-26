@@ -49,7 +49,7 @@ defmodule ExAws.S3 do
   @type presigned_post_opts :: [
           {:expires_in, integer}
           | {:acl, binary | {:starts_with, binary}}
-          | {:content_length_range, integer, integer}
+          | {:content_length_range, [integer]}
           | {:key, binary | {:starts_with, binary}}
           | {:custom_conditions, [any()]}
         ]
