@@ -219,6 +219,23 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#put_object_copy percent encodes spaces" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{"x-amz-copy-source" => "/src-bucket/foo/hello%20friend.txt"},
+      path: "dest-object",
+      http_method: :put
+    }
+
+    assert expected ==
+             S3.put_object_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "/foo/hello friend.txt"
+             )
+  end
+
   test "#complete_multipart_upload" do
     expected = %Operation.S3{
       body:
