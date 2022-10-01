@@ -44,6 +44,7 @@ defmodule ExAws.S3 do
           | {:s3_accelerate, boolean}
           | {:query_params, [{binary, binary}]}
           | {:headers, [{binary, binary}]}
+          | {:bucket_as_host, boolean}
         ]
 
   @type presigned_post_opts :: [
