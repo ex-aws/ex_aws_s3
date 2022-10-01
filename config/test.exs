@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 # Configure access key and secret access key with dummy value to make AuthCache work.
 config :ex_aws,
