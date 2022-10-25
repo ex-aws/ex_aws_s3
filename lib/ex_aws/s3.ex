@@ -1121,16 +1121,16 @@ defmodule ExAws.S3 do
 
   @doc "Upload a part for a multipart copy"
   @spec upload_part_copy(
-          dest_bucket :: binary,
-          dest_object :: binary,
-          src_bucket :: binary,
-          src_object :: binary
-        ) :: ExAws.Operation.S3.t()
-  @spec upload_part_copy(
-          dest_bucket :: binary,
-          dest_object :: binary,
           src_bucket :: binary,
           src_object :: binary,
+          dest_bucket :: binary,
+          dest_object :: binary
+        ) :: ExAws.Operation.S3.t()
+  @spec upload_part_copy(
+          src_bucket :: binary,
+          src_object :: binary,
+          dest_bucket :: binary,
+          dest_object :: binary,
           opts :: upload_part_copy_opts
         ) :: ExAws.Operation.S3.t()
   @amz_headers ~w(
@@ -1138,7 +1138,7 @@ defmodule ExAws.S3 do
     copy_source_if_unmodified_since
     copy_source_if_match
     copy_source_if_none_match)a
-  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, opts \\ []) do
+  def upload_part_copy(src_bucket, src_object, dest_bucket, dest_object, opts \\ []) do
     opts = opts |> Map.new()
 
     source_encryption =

@@ -269,10 +269,10 @@ defmodule ExAws.S3Test do
 
     assert expected ==
              S3.upload_part_copy(
-               "dest-bucket",
-               "dest-object",
                "src-bucket",
                "src-object",
+               "dest-bucket",
+               "dest-object",
                source_encryption: [customer_algorithm: "md5"],
                copy_source_range: 1..9
              )
