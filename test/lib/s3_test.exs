@@ -165,10 +165,10 @@ defmodule ExAws.S3Test do
 
     assert expected ==
              S3.put_object_copy(
-               "dest-bucket",
-               "dest-object",
                "src-bucket",
                "src-object",
+               "dest-bucket",
+               "dest-object",
                source_encryption: [customer_algorithm: "md5"],
                acl: :public_read,
                destination_encryption: [customer_algorithm: "md5"],
@@ -187,7 +187,7 @@ defmodule ExAws.S3Test do
     }
 
     assert expected ==
-             S3.put_object_copy("dest-bucket", "dest-object", "src-bucket", "src-object")
+             S3.put_object_copy("src-bucket", "src-object", "dest-bucket", "dest-object")
   end
 
   test "#put_object_copy utf8" do
@@ -199,7 +199,7 @@ defmodule ExAws.S3Test do
     }
 
     assert expected ==
-             S3.put_object_copy("dest-bucket", "dest-object", "src-bucket", "/foo/ü.txt")
+             S3.put_object_copy("src-bucket", "/foo/ü.txt", "dest-bucket", "dest-object")
   end
 
   test "#put_object_copy encoding" do
@@ -212,10 +212,10 @@ defmodule ExAws.S3Test do
 
     assert expected ==
              S3.put_object_copy(
-               "dest-bucket",
-               "dest-object",
                "src-bucket",
-               "/foo/hello+friend.txt"
+               "/foo/hello+friend.txt",
+               "dest-bucket",
+               "dest-object"
              )
   end
 
@@ -229,10 +229,10 @@ defmodule ExAws.S3Test do
 
     assert expected ==
              S3.put_object_copy(
-               "dest-bucket",
-               "dest-object",
                "src-bucket",
-               "/foo/hello friend.txt"
+               "/foo/hello friend.txt",
+               "dest-bucket",
+               "dest-object"
              )
   end
 

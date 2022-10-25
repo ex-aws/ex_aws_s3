@@ -997,16 +997,16 @@ defmodule ExAws.S3 do
 
   @doc "Copy an object"
   @spec put_object_copy(
-          dest_bucket :: binary,
-          dest_object :: binary,
-          src_bucket :: binary,
-          src_object :: binary
-        ) :: ExAws.Operation.S3.t()
-  @spec put_object_copy(
-          dest_bucket :: binary,
-          dest_object :: binary,
           src_bucket :: binary,
           src_object :: binary,
+          dest_bucket :: binary,
+          dest_object :: binary
+        ) :: ExAws.Operation.S3.t()
+  @spec put_object_copy(
+          src_bucket :: binary,
+          src_object :: binary,
+          dest_bucket :: binary,
+          dest_object :: binary,
           opts :: put_object_copy_opts
         ) :: ExAws.Operation.S3.t()
   @amz_headers ~w(
@@ -1017,7 +1017,7 @@ defmodule ExAws.S3 do
     copy_source_if_none_match
     storage_class
     website_redirect_location)a
-  def put_object_copy(dest_bucket, dest_object, src_bucket, src_object, opts \\ []) do
+  def put_object_copy(src_bucket, src_object, dest_bucket, dest_object, opts \\ []) do
     opts = opts |> Map.new()
 
     amz_headers =
