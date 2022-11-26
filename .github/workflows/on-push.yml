@@ -4,7 +4,7 @@ env:
   MIX_ENV: test
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         otp: ["23.3.4.9"]
@@ -15,6 +15,7 @@ jobs:
         with:
           otp-version: ${{matrix.otp}}
           elixir-version: ${{matrix.elixir}}
+          version-type: strict
       - run: mix deps.get
       - run: mix compile
       - run: mix format --check-formatted
