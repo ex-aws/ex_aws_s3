@@ -1,7 +1,5 @@
 import Config
 
-config :logger, level: :debug
-
 # Configure access key and secret access key with dummy value to make AuthCache work.
 config :ex_aws,
   access_key_id: "dummy",
