@@ -53,6 +53,9 @@ defmodule ExAws.S3 do
           | {:content_length_range, [integer]}
           | {:key, binary | {:starts_with, binary}}
           | {:custom_conditions, [any()]}
+          | {:virtual_host, boolean}
+          | {:s3_accelerate, boolean}
+          | {:bucket_as_host, boolean}
         ]
 
   @type presigned_post_result :: %{
@@ -1302,11 +1305,19 @@ defmodule ExAws.S3 do
         ) :: presigned_post_result()
   def presigned_post(config, bucket, key, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
+    virtual_host = Keyword.get(opts, :virtual_host, false)
+    s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
+    bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
     {:ok, datetime} = DateTime.now("Etc/UTC")
     expiration_date = DateTime.add(datetime, expires_in, :second)
     datetime = datetime_to_erlang_time(datetime)
 
     credential = ExAws.Auth.Credentials.generate_credential_v4("s3", config, datetime)
+
+    {config, virtual_host} =
+      if s3_accelerate,
+        do: {put_accelerate_host(config), true},
+        else: {config, virtual_host}
 
     # security_token will be present when temporary credentials are used
     {opts, security_token_fields} =
@@ -1334,7 +1345,7 @@ defmodule ExAws.S3 do
     signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, datetime, policy)
 
     %{
-      url: build_bucket_url(config, bucket),
+      url: url_to_sign(bucket, nil, config, virtual_host, bucket_as_host),
       fields:
         %{
           "key" => key,
@@ -1360,7 +1371,13 @@ defmodule ExAws.S3 do
 
   defp url_to_sign(bucket, object, config, virtual_host, bucket_as_host) do
     port = sanitized_port_component(config)
-    object = ensure_slash(object)
+
+    object =
+      if object do
+        ensure_slash(object)
+      else
+        ""
+      end
 
     case virtual_host do
       true ->

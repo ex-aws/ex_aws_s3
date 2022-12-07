@@ -627,6 +627,57 @@ defmodule ExAws.S3Test do
            }
   end
 
+  test "#presigned_post passing virtual_host=false option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", virtual_host: false)
+    assert url == "https://s3.amazonaws.com/bucket"
+  end
+
+  test "#presigned_post passing virtual_host=true option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", virtual_host: true)
+    assert url == "https://bucket.s3.amazonaws.com"
+  end
+
+  @tag :wip
+  test "#presigned_post passing both expires_in and virtual_host options" do
+    opts = [expires_in: 100, virtual_host: true]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3.amazonaws.com"
+  end
+
+  test "#presigned_post passing s3_accelerate=false option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", s3_accelerate: false)
+    assert url == "https://s3.amazonaws.com/bucket"
+  end
+
+  test "#presigned_post passing s3_accelerate=true option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", s3_accelerate: true)
+    assert url == "https://bucket.s3-accelerate.amazonaws.com"
+  end
+
+  test "#presigned_post passing both virtual_host and s3_accelerate options" do
+    opts = [virtual_host: false, s3_accelerate: true]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3-accelerate.amazonaws.com"
+
+    opts = [virtual_host: true, s3_accelerate: false]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3.amazonaws.com"
+  end
+
+  test "#presigned_post passing both virtual_host and bucket_as_host options" do
+    opts = [virtual_host: false, bucket_as_host: true]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://s3.amazonaws.com/bucket"
+
+    opts = [virtual_host: true, bucket_as_host: false]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3.amazonaws.com"
+
+    opts = [virtual_host: true, bucket_as_host: true]
+    %{url: url} = S3.presigned_post(config(), "bucket.custom-domain.com", "foo.txt", opts)
+    assert url == "https://bucket.custom-domain.com"
+  end
+
   @spec assert_pre_signed_url(
           url,
           expected_scheme_host_path,
