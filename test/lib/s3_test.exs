@@ -637,7 +637,6 @@ defmodule ExAws.S3Test do
     assert url == "https://bucket.s3.amazonaws.com"
   end
 
-  @tag :wip
   test "#presigned_post passing both expires_in and virtual_host options" do
     opts = [expires_in: 100, virtual_host: true]
     %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)

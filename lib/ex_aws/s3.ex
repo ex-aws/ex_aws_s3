@@ -1297,6 +1297,21 @@ defmodule ExAws.S3 do
     end
   end
 
+  @doc """
+  Generate a pre-signed post for an object.
+
+  When option param `:virtual_host` is `true`, the bucket name will be used in
+  the hostname, along with the s3 default host which will look like -
+  `<bucket>.s3.<region>.amazonaws.com` host.
+  This will cause the returned URL to be 'http' and not 'https'.
+
+  When option param `:s3_accelerate` is `true`, the bucket name will be used as
+  the hostname, along with the `s3-accelerate.amazonaws.com` host.
+
+  When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname.
+  In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
+  The `bucket_as_host` must be passed along with `virtual_host=true`
+  """
   @spec presigned_post(
           config :: map,
           bucket :: binary,
