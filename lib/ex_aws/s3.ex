@@ -1238,7 +1238,6 @@ defmodule ExAws.S3 do
   When option param `:virtual_host` is `true`, the bucket name will be used in
   the hostname, along with the s3 default host which will look like -
   `<bucket>.s3.<region>.amazonaws.com` host.
-  This will cause the returned URL to be 'http' and not 'https'.
 
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
@@ -1303,7 +1302,6 @@ defmodule ExAws.S3 do
   When option param `:virtual_host` is `true`, the bucket name will be used in
   the hostname, along with the s3 default host which will look like -
   `<bucket>.s3.<region>.amazonaws.com` host.
-  This will cause the returned URL to be 'http' and not 'https'.
 
   When option param `:s3_accelerate` is `true`, the bucket name will be used as
   the hostname, along with the `s3-accelerate.amazonaws.com` host.
