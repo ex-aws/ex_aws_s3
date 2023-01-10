@@ -371,6 +371,11 @@ defmodule ExAws.S3Test do
     assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo.txt", "3600")
   end
 
+  test "#presigned_url respects port in config" do
+    {:ok, url} = S3.presigned_url(config(port: 9090), :get, "bucket", "foo.txt")
+    assert_pre_signed_url(url, "https://s3.amazonaws.com:9090/bucket/foo.txt", "3600")
+  end
+
   test "#presigned_url passing expires_in option" do
     {:ok, url} = S3.presigned_url(config(), :get, "bucket", "foo.txt", expires_in: 100)
     assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo.txt", "100")
@@ -627,6 +632,61 @@ defmodule ExAws.S3Test do
            }
   end
 
+  test "#presigned_post passing virtual_host=false option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", virtual_host: false)
+    assert url == "https://s3.amazonaws.com/bucket"
+  end
+
+  test "#presigned_post respects port in config" do
+    %{url: url} = S3.presigned_post(config(port: 9090), "bucket", "foo.txt")
+    assert url == "https://s3.amazonaws.com:9090/bucket"
+  end
+
+  test "#presigned_post passing virtual_host=true option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", virtual_host: true)
+    assert url == "https://bucket.s3.amazonaws.com"
+  end
+
+  test "#presigned_post passing both expires_in and virtual_host options" do
+    opts = [expires_in: 100, virtual_host: true]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3.amazonaws.com"
+  end
+
+  test "#presigned_post passing s3_accelerate=false option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", s3_accelerate: false)
+    assert url == "https://s3.amazonaws.com/bucket"
+  end
+
+  test "#presigned_post passing s3_accelerate=true option" do
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", s3_accelerate: true)
+    assert url == "https://bucket.s3-accelerate.amazonaws.com"
+  end
+
+  test "#presigned_post passing both virtual_host and s3_accelerate options" do
+    opts = [virtual_host: false, s3_accelerate: true]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3-accelerate.amazonaws.com"
+
+    opts = [virtual_host: true, s3_accelerate: false]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3.amazonaws.com"
+  end
+
+  test "#presigned_post passing both virtual_host and bucket_as_host options" do
+    opts = [virtual_host: false, bucket_as_host: true]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://s3.amazonaws.com/bucket"
+
+    opts = [virtual_host: true, bucket_as_host: false]
+    %{url: url} = S3.presigned_post(config(), "bucket", "foo.txt", opts)
+    assert url == "https://bucket.s3.amazonaws.com"
+
+    opts = [virtual_host: true, bucket_as_host: true]
+    %{url: url} = S3.presigned_post(config(), "bucket.custom-domain.com", "foo.txt", opts)
+    assert url == "https://bucket.custom-domain.com"
+  end
+
   @spec assert_pre_signed_url(
           url,
           expected_scheme_host_path,
@@ -644,7 +704,14 @@ defmodule ExAws.S3Test do
          expected_query_params \\ []
        ) do
     uri = URI.parse(url)
-    assert expected_scheme_host_path == "#{uri.scheme}://#{uri.host}#{uri.path}"
+
+    assert expected_scheme_host_path ==
+             "#{uri.scheme}://#{uri.host}#{if uri.port != 443 do
+               ":#{uri.port}"
+             else
+               ""
+             end}#{uri.path}"
+
     headers = URI.decode_query(uri.query)
 
     assert %{
@@ -663,5 +730,5 @@ defmodule ExAws.S3Test do
     end
   end
 
-  defp config(), do: ExAws.Config.new(:s3, [])
+  defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
 end
