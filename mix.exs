@@ -1,7 +1,7 @@
 defmodule ExAws.S3.Mixfile do
   use Mix.Project
 
-  @version "2.3.3"
+  @version "2.4.0"
   @service "s3"
   @url "https://github.com/ex-aws/ex_aws_#{@service}"
   @name __MODULE__ |> Module.split() |> Enum.take(2) |> Enum.join(".")
