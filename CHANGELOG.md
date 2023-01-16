@@ -1,5 +1,12 @@
 # Changelog
 
+v2.4.0 (2023-01-10)
+
+- Update `presigned_post` to support the same URL options as `presigned_url`.
+- Add `bucket_as_host` to `presigned_url_opts`
+- Bring minimum Elixir and Erlang versions into line with base ExAws
+- Use percent encoding instead of www form for header
+
 v2.3.3 (2022-06-30)
 
 - Update docs
