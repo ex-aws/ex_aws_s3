@@ -1250,7 +1250,7 @@ defmodule ExAws.S3 do
 
   Signed headers can be added to the url by setting option param `:headers` to
   a list of `{"key", "value"}` pairs.
-  
+
   ## Example
   ```
   :s3
