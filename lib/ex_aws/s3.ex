@@ -1252,6 +1252,13 @@ defmodule ExAws.S3 do
 
   Signed headers can be added to the url by setting option param `:headers` to
   a list of `{"key", "value"}` pairs.
+
+  ## Example
+  ```
+  :s3
+  |> ExAws.Config.new([])
+  |> ExAws.S3.presigned_url(:get, "my-bucket", "my-object", [])
+  ```
   """
   @spec presigned_url(
           config :: map,
