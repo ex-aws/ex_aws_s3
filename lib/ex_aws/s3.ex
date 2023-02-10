@@ -828,7 +828,7 @@ defmodule ExAws.S3 do
   @request_headers [:range, :if_modified_since, :if_unmodified_since, :if_match, :if_none_match, :checksum_mode]
   def head_object(bucket, object, opts \\ []) do
     opts = opts |> Map.new()
-
+    @request_headsers |> dbg()
     headers =
       opts
       |> format_and_take(@request_headers)
