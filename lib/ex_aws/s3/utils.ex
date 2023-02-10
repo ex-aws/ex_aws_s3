@@ -67,6 +67,7 @@ defmodule ExAws.S3.Utils do
         {:ok, value} -> Map.put(params, aws_opt, value)
       end
     end)
+    |> dbg()
   end
 
   def format_and_take(opts, param_list) do
