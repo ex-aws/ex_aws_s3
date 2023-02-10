@@ -824,7 +824,7 @@ defmodule ExAws.S3 do
   @spec head_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t()
   @spec head_object(bucket :: binary, object :: binary, opts :: head_object_opts) ::
           ExAws.Operation.S3.t()
-  @request_headers [:range, :if_modified_since, :if_unmodified_since, :if_match, :if_none_match]
+  @request_headers [:range, :if_modified_since, :if_unmodified_since, :if_match, :if_none_match, :checksum_mode]
   def head_object(bucket, object, opts \\ []) do
     opts = opts |> Map.new()
 
