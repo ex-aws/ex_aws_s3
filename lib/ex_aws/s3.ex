@@ -818,6 +818,7 @@ defmodule ExAws.S3 do
           | {:if_unmodified_since, binary}
           | {:if_match, binary}
           | {:if_none_match, binary}
+          | {:checksum_mode, binary}
   @type head_object_opts :: [head_object_opt]
 
   @doc "Determine if an object exists"
