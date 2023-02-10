@@ -831,6 +831,7 @@ defmodule ExAws.S3 do
     headers =
       opts
       |> format_and_take(@request_headers)
+      |> dbg()
 
     headers =
       opts
@@ -838,7 +839,7 @@ defmodule ExAws.S3 do
       |> build_encryption_headers
       |> Map.merge(headers)
 
-    params = format_and_take(opts, [:version_id])
+    params = format_and_take(opts, [:version_id])|> IO.inspect(label: "DEBUG")
     request(:head, bucket, object, headers: headers, params: params)
   end
 
