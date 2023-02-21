@@ -97,5 +97,39 @@ defmodule ExAws.S3.ImplTest do
       assert rule |> Utils.build_lifecycle_rule() ==
                "<Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>2</DaysAfterInitiation></AbortIncompleteMultipartUpload><NoncurrentVersionExpiration><NoncurrentDays>2</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><NoncurrentDays>2</NoncurrentDays><StorageClass></StorageClass></NoncurrentVersionTransition><Expiration><Days>2</Days><ExpiredObjectDeleteMarker>true</ExpiredObjectDeleteMarker></Expiration><Transition><Days>2</Days><StorageClass></StorageClass></Transition><Filter><Prefix>prefix/</Prefix></Filter><Status>Enabled</Status><ID>123</ID></Rule>"
     end
+
+    test "lifecycle rule with 0 day trigger" do
+      rule = %{
+        id: "123",
+        enabled: true,
+        filter: %{
+          prefix: "prefix/",
+          tags: %{}
+        },
+        actions: %{
+          transition: %{
+            trigger: {:days, 0},
+            storage: ""
+          },
+          expiration: %{
+            trigger: {:days, 0},
+            expired_object_delete_marker: true
+          },
+          noncurrent_version_transition: %{
+            trigger: {:days, 0},
+            storage: ""
+          },
+          noncurrent_version_expiration: %{
+            trigger: {:days, 0}
+          },
+          abort_incomplete_multipart_upload: %{
+            trigger: {:days, 0}
+          }
+        }
+      }
+
+      assert rule |> Utils.build_lifecycle_rule() ==
+               "<Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>0</DaysAfterInitiation></AbortIncompleteMultipartUpload><NoncurrentVersionExpiration><NoncurrentDays>0</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><NoncurrentDays>0</NoncurrentDays><StorageClass></StorageClass></NoncurrentVersionTransition><Expiration><Days>0</Days><ExpiredObjectDeleteMarker>true</ExpiredObjectDeleteMarker></Expiration><Transition><Days>0</Days><StorageClass></StorageClass></Transition><Filter><Prefix>prefix/</Prefix></Filter><Status>Enabled</Status><ID>123</ID></Rule>"
+    end
   end
 end
