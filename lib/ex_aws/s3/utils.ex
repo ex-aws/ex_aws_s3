@@ -225,18 +225,18 @@ defmodule ExAws.S3.Utils do
   end
 
   defp livecycle_trigger(action, {:days, days})
-       when action in [:transition, :expiration] and is_integer(days) and days > 0 do
+       when action in [:transition, :expiration] and is_integer(days) and days >= 0 do
     ["<Days>", Integer.to_string(days), "</Days>"]
   end
 
   defp livecycle_trigger(action, {:days, days})
-       when action in [:abort_incomplete_multipart_upload] and is_integer(days) and days > 0 do
+       when action in [:abort_incomplete_multipart_upload] and is_integer(days) and days >= 0 do
     ["<DaysAfterInitiation>", Integer.to_string(days), "</DaysAfterInitiation>"]
   end
 
   defp livecycle_trigger(action, {:days, days})
        when action in [:noncurrent_version_transition, :noncurrent_version_expiration] and
-              is_integer(days) and days > 0 do
+              is_integer(days) and days >= 0 do
     ["<NoncurrentDays>", Integer.to_string(days), "</NoncurrentDays>"]
   end
 
