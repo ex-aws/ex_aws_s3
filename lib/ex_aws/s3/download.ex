@@ -86,10 +86,10 @@ defimpl ExAws.Operation, for: ExAws.S3.Download do
 
       {:ok, :done}
     rescue
-      _ ->
+      e ->
         File.close(file)
         File.rm(op.dest)
-        {:error, "error downloading file"}
+        {:error, e}
     end
   end
 
