@@ -25,7 +25,7 @@ v2.3.1 (2021-10-18)
 
 v2.3.0 (2021-07-26)
 
-- Docunemtation fixes
+- Documentation fixes
 - Fix `upload_opts` typespec
 - Implement `put_bucket_versioning`
 
