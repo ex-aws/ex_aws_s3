@@ -681,7 +681,7 @@ defmodule ExAws.S3 do
       # but processes the stream line by line. For example, the default chunk
       # size of 1MB means requests for bytes from S3 will ask for 1MB sizes (to be downloaded)
       # however each element of the stream will be a single line.
-      def generate_stream(bucket, file, opts \\\\ []) do
+      def generate_stream(bucket, file, opts \\ []) do
         bucket
         |> ExAws.S3.download_file(file, :memory, opts)
         |> ExAws.stream!()
@@ -714,7 +714,7 @@ defmodule ExAws.S3 do
               {newline_offset + newline_length, length - difference}
             )
           :nomatch ->
-            {Enum.reverse(elements, binary_part(string, offset, length))}
+            {Enum.reverse(elements), binary_part(string, offset, length)}
         end
       end
 
