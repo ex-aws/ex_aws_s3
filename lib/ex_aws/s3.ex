@@ -28,6 +28,19 @@ defmodule ExAws.S3 do
           | {:uri, binary}
         ]
 
+  @type storage_class_opt :: {:storage_class, storage_class}
+  @type storage_class ::
+          :standard
+          | :reduced_redundancy
+          | :standard_ia
+          | :onezone_ia
+          | :intelligent_tiering
+          | :glacier
+          | :deep_archive
+          | :outposts
+          | :glacier_ir
+          | :snow
+
   @type customer_encryption_opts :: [
           customer_algorithm: binary,
           customer_key: binary,
@@ -898,11 +911,11 @@ defmodule ExAws.S3 do
           | {:content_type, binary}
           | {:expect, binary}
           | {:expires, binary}
-          | {:storage_class, :standard | :reduced_redundancy}
           | {:website_redirect_location, binary}
           | {:encryption, encryption_opts}
           | {:meta, amz_meta_opts}
           | acl_opt
+          | storage_class_opt
         ]
   @doc "Create an object within a bucket"
   @spec put_object(bucket :: binary, object :: binary, body :: binary) :: ExAws.Operation.S3.t()
@@ -992,10 +1005,10 @@ defmodule ExAws.S3 do
           | {:content_type, binary}
           | {:expect, binary}
           | {:expires, binary}
-          | {:storage_class, :standard | :reduced_redundancy}
           | {:website_redirect_location, binary}
           | {:meta, amz_meta_opts}
           | acl_opt
+          | storage_class_opt
         ]
 
   @doc "Copy an object"
@@ -1072,10 +1085,10 @@ defmodule ExAws.S3 do
           | {:content_encoding, binary}
           | {:content_type, binary}
           | {:expires, binary}
-          | {:storage_class, :standard | :reduced_redundancy}
           | {:website_redirect_location, binary}
           | {:encryption, encryption_opts}
           | acl_opt
+          | storage_class_opt
   @type initiate_multipart_upload_opts :: [initiate_multipart_upload_opt]
 
   @doc "Initiate a multipart upload"
