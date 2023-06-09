@@ -81,7 +81,7 @@ defmodule ExAws.S3Test do
         "content-encoding" => "application/json",
         "x-amz-acl" => "public-read",
         "x-amz-server-side-encryption" => "AES256",
-        "x-amz-storage-class" => "spicy",
+        "x-amz-storage-class" => "GLACIER_IR",
         "content-md5" => "asdf",
         "x-amz-meta-foo" => "sqiggles"
       },
@@ -95,7 +95,7 @@ defmodule ExAws.S3Test do
                "object.json",
                "data",
                content_encoding: "application/json",
-               storage_class: "spicy",
+               storage_class: :glacier_ir,
                content_md5: "asdf",
                acl: :public_read,
                encryption: "AES256",

@@ -15,7 +15,9 @@ defmodule ExAws.S3.Utils do
     :expires,
     :content_md5
   ]
-  @amz_headers [:storage_class, :website_redirect_location, :tagging, :tagging_directive]
+
+  @amz_headers [:website_redirect_location, :tagging, :tagging_directive]
+
   def put_object_headers(opts) do
     opts = opts |> Map.new()
 
@@ -27,6 +29,8 @@ defmodule ExAws.S3.Utils do
       opts
       |> format_and_take(@amz_headers)
       |> namespace("x-amz")
+
+    storage_class_headers = format_storage_class_headers(opts)
 
     acl_headers = format_acl_headers(opts)
 
@@ -42,6 +46,7 @@ defmodule ExAws.S3.Utils do
 
     regular_headers
     |> Map.merge(amz_headers)
+    |> Map.merge(storage_class_headers)
     |> Map.merge(acl_headers)
     |> Map.merge(encryption_headers)
     |> Map.merge(meta)
@@ -74,6 +79,17 @@ defmodule ExAws.S3.Utils do
     |> Map.new()
     |> format_and_take(param_list)
   end
+
+  def format_storage_class_headers(%{storage_class: storage_class}) do
+    formatted_storage_class =
+      storage_class
+      |> to_string()
+      |> String.upcase()
+
+    %{"x-amz-storage-class" => formatted_storage_class}
+  end
+
+  def format_storage_class_headers(_), do: %{}
 
   @acl_headers [
     :acl,
