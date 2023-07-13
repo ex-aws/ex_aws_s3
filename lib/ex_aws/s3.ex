@@ -1259,6 +1259,9 @@ defmodule ExAws.S3 do
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
 
+  Option param `:start_datetime` can be used to modify the start date for the presigned url, which
+  allows for cache friendly urls.
+
   Additional (signed) query parameters can be added to the url by setting option param
   `:query_params` to a list of `{"key", "value"}` pairs. Useful if you are uploading parts of
   a multipart upload directly from the browser.
@@ -1300,7 +1303,7 @@ defmodule ExAws.S3 do
 
       false ->
         url = url_to_sign(bucket, object, config, virtual_host, bucket_as_host)
-        datetime = :calendar.universal_time()
+        datetime = Keyword.get(opts, :start_datetime, :calendar.universal_time())
 
         ExAws.Auth.presigned_url(
           http_method,
