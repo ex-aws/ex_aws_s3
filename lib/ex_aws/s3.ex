@@ -1126,8 +1126,7 @@ defmodule ExAws.S3 do
   end
 
   @type upload_part_copy_opts :: [
-          {:copy_source_range, Range.t()}
-          | {:copy_source_if_modified_since, binary}
+          {:copy_source_if_modified_since, binary}
           | {:copy_source_if_unmodified_since, binary}
           | {:copy_source_if_match, binary}
           | {:copy_source_if_none_match, binary}
@@ -1140,13 +1139,19 @@ defmodule ExAws.S3 do
           dest_bucket :: binary,
           dest_object :: binary,
           src_bucket :: binary,
-          src_object :: binary
+          src_object :: binary,
+          upload_id   :: binary,
+          part_number :: pos_integer,
+          source_range :: Range.t()
         ) :: ExAws.Operation.S3.t()
   @spec upload_part_copy(
           dest_bucket :: binary,
           dest_object :: binary,
           src_bucket :: binary,
           src_object :: binary,
+          upload_id   :: binary,
+          part_number :: pos_integer,
+          source_range :: Range.t(),
           opts :: upload_part_copy_opts
         ) :: ExAws.Operation.S3.t()
   @amz_headers ~w(
@@ -1154,7 +1159,7 @@ defmodule ExAws.S3 do
     copy_source_if_unmodified_since
     copy_source_if_match
     copy_source_if_none_match)a
-  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, opts \\ []) do
+  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, upload_id, part_number, source_range, opts \\ []) do
     opts = opts |> Map.new()
 
     source_encryption =
@@ -1177,17 +1182,14 @@ defmodule ExAws.S3 do
       |> Map.merge(source_encryption)
       |> Map.merge(destination_encryption)
 
+    first..last = source_range
     headers =
-      case opts do
-        %{copy_source_range: first..last} ->
-          Map.put(headers, "x-amz-copy-source-range", "bytes=#{first}-#{last}")
-
-        _ ->
-          headers
-      end
+      headers
+      |> Map.put("x-amz-copy-source-range", "bytes=#{first}-#{last}")
       |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
 
-    request(:put, dest_bucket, dest_object, [headers: headers], %{
+    params = %{"uploadId" => upload_id, "partNumber" => part_number}
+    request(:put, dest_bucket, dest_object, [headers: headers, params: params], %{
       parser: &Parsers.parse_upload_part_copy/1
     })
   end
