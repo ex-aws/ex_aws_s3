@@ -41,6 +41,7 @@ defmodule ExAws.S3.UploadTest do
             <ETag>&quot;17fbc0a106abbb6f381aac6e331f2a19-1&quot;</ETag>
           </CompleteMultipartUploadResult>
           """
+
           send(test_pid, :completed_upload)
 
           conn

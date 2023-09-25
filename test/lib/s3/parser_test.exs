@@ -313,7 +313,9 @@ defmodule ExAws.S3.ParserTest do
     </CopyPartResult>
     """
 
-    result = ExAws.S3.Parsers.parse_upload_part_copy({:ok, %{body: parse_upload_part_copy_response}})
+    result =
+      ExAws.S3.Parsers.parse_upload_part_copy({:ok, %{body: parse_upload_part_copy_response}})
+
     {:ok, %{body: %{last_modified: last_modified, etag: etag}}} = result
 
     assert "2019-02-09T06:27:26.000Z" == last_modified
@@ -330,14 +332,18 @@ defmodule ExAws.S3.ParserTest do
     </CompleteMultipartUploadResult>
     """
 
-    result = ExAws.S3.Parsers.parse_complete_multipart_upload({:ok, %{body: complete_multipart_upload_response}})
+    result =
+      ExAws.S3.Parsers.parse_complete_multipart_upload(
+        {:ok, %{body: complete_multipart_upload_response}}
+      )
+
     {:ok, %{body: body}} = result
 
     assert body == %{
-      location: "https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4",
-      bucket: "my-bucket",
-      key: "tmp-copy3.mp4",
-      etag: "\"17fbc0a106abbb6f381aac6e331f2a19-1\""
-    }
+             location: "https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4",
+             bucket: "my-bucket",
+             key: "tmp-copy3.mp4",
+             etag: "\"17fbc0a106abbb6f381aac6e331f2a19-1\""
+           }
   end
 end

@@ -84,7 +84,9 @@ defmodule ExAws.S3 do
   @spec list_buckets() :: ExAws.Operation.S3.t()
   @spec list_buckets(opts :: Keyword.t()) :: ExAws.Operation.S3.t()
   def list_buckets(opts \\ []) do
-    request(:get, "", "/", [params: opts], parser: &ExAws.S3.Parsers.parse_all_my_buckets_result/1)
+    request(:get, "", "/", [params: opts],
+      parser: &ExAws.S3.Parsers.parse_all_my_buckets_result/1
+    )
   end
 
   @doc "Delete a bucket"
@@ -572,7 +574,10 @@ defmodule ExAws.S3 do
     content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
     body_binary = body |> IO.iodata_to_binary()
 
-    request(:post, bucket, "/?delete", body: body_binary, headers: %{"content-md5" => content_md5})
+    request(:post, bucket, "/?delete",
+      body: body_binary,
+      headers: %{"content-md5" => content_md5}
+    )
   end
 
   @doc """
@@ -1140,7 +1145,7 @@ defmodule ExAws.S3 do
           dest_object :: binary,
           src_bucket :: binary,
           src_object :: binary,
-          upload_id   :: binary,
+          upload_id :: binary,
           part_number :: pos_integer,
           source_range :: Range.t()
         ) :: ExAws.Operation.S3.t()
@@ -1149,7 +1154,7 @@ defmodule ExAws.S3 do
           dest_object :: binary,
           src_bucket :: binary,
           src_object :: binary,
-          upload_id   :: binary,
+          upload_id :: binary,
           part_number :: pos_integer,
           source_range :: Range.t(),
           opts :: upload_part_copy_opts
@@ -1159,7 +1164,16 @@ defmodule ExAws.S3 do
     copy_source_if_unmodified_since
     copy_source_if_match
     copy_source_if_none_match)a
-  def upload_part_copy(dest_bucket, dest_object, src_bucket, src_object, upload_id, part_number, source_range, opts \\ []) do
+  def upload_part_copy(
+        dest_bucket,
+        dest_object,
+        src_bucket,
+        src_object,
+        upload_id,
+        part_number,
+        source_range,
+        opts \\ []
+      ) do
     opts = opts |> Map.new()
 
     source_encryption =
@@ -1183,12 +1197,14 @@ defmodule ExAws.S3 do
       |> Map.merge(destination_encryption)
 
     first..last = source_range
+
     headers =
       headers
       |> Map.put("x-amz-copy-source-range", "bytes=#{first}-#{last}")
       |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
 
     params = %{"uploadId" => upload_id, "partNumber" => part_number}
+
     request(:put, dest_bucket, dest_object, [headers: headers, params: params], %{
       parser: &Parsers.parse_upload_part_copy/1
     })
