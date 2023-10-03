@@ -1,5 +1,16 @@
 # Changelog
 
+v2.5.0 (2023-10-04)
+
+- Increase minimum Elixir version to 1.11
+- Add tests for Elixir 1.15
+- Merge fix for multipart copy (sort of BREAKING: this changes the signature of
+ `upload_part_copy`, however that function could never have worked properly previously so I have
+ to assume that nobody was actually using it).
+- Add support for optional `start_datetime` opt on `presigned_url/5`
+- Allow 0 day triggers for lifecycle rules
+- Return the full error on download failure rather than the generic "error downloading file" string
+
 v2.4.0 (2023-01-10)
 
 - Update `presigned_post` to support the same URL options as `presigned_url`.
