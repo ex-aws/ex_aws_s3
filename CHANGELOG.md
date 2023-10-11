@@ -1,5 +1,9 @@
 # Changelog
 
+v2.5.1 (2023-10-12)
+
+- Fix typespec for presigned_url/5
+
 v2.5.0 (2023-10-04)
 
 - Increase minimum Elixir version to 1.11
