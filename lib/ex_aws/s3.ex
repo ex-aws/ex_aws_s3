@@ -58,6 +58,7 @@ defmodule ExAws.S3 do
           | {:query_params, [{binary, binary}]}
           | {:headers, [{binary, binary}]}
           | {:bucket_as_host, boolean}
+          | {:start_datetime, DateTime.t()}
         ]
 
   @type presigned_post_opts :: [
