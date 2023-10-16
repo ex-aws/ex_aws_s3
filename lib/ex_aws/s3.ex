@@ -350,8 +350,8 @@ defmodule ExAws.S3 do
       |> IO.iodata_to_binary()
 
     body = "<CORSConfiguration>#{rules}</CORSConfiguration>"
-    content_hash = :crypto.hash(:md5, body) |> Base.encode64()
-    headers = %{"content-md5" => content_hash}
+
+    headers = calculate_content_header(body)
 
     request(:put, bucket, "/", resource: "cors", body: body, headers: headers)
   end
@@ -412,8 +412,7 @@ defmodule ExAws.S3 do
 
     body = "<LifecycleConfiguration>#{rules}</LifecycleConfiguration>"
 
-    content_hash = :crypto.hash(:md5, body) |> Base.encode64()
-    headers = %{"content-md5" => content_hash}
+    headers = calculate_content_header(body)
 
     request(:put, bucket, "/", resource: "lifecycle", body: body, headers: headers)
   end
@@ -475,8 +474,7 @@ defmodule ExAws.S3 do
   @spec put_bucket_versioning(bucket :: binary, version_config :: binary) ::
           ExAws.Operation.S3.t()
   def put_bucket_versioning(bucket, version_config) do
-    content_hash = :crypto.hash(:md5, version_config) |> Base.encode64()
-    headers = %{"content-md5" => content_hash}
+    headers = calculate_content_header(version_config)
     request(:put, bucket, "/", resource: "versioning", body: version_config, headers: headers)
   end
 
@@ -572,12 +570,11 @@ defmodule ExAws.S3 do
       "</Delete>"
     ]
 
-    content_hash = :crypto.hash(:md5, body) |> Base.encode64()
     body_binary = body |> IO.iodata_to_binary()
 
     request(:post, bucket, "/?delete",
       body: body_binary,
-      headers: %{"content-md5" => content_hash}
+      headers: calculate_content_header(body)
     )
   end
 
@@ -978,12 +975,12 @@ defmodule ExAws.S3 do
       "</Tagging>"
     ]
 
-    # content_hash = :crypto.hash(:md5, body) |> Base.encode64()
+    {ct, content_hash} = calculate_content_hash(body)
 
     headers =
       opts
       |> Map.new()
-#      |> Map.merge(%{"content-md5" => content_hash})
+      |> Map.merge(%{ct => content_hash})
 
     body_binary = body |> IO.iodata_to_binary()
 
@@ -994,6 +991,29 @@ defmodule ExAws.S3 do
       params: params
     )
   end
+
+  def calculate_content_header(content),
+    do: calculate_content_hash(content) |> pair_tuple_to_map()
+
+  @spec calculate_content_hash(iodata()) :: {binary(), binary()}
+  def calculate_content_hash(content) do
+    alg = get_hash_config()
+    {hash_header(alg), :crypto.hash(alg, content) |> Base.encode64()}
+  end
+
+  @spec get_hash_config() :: :md5
+  def get_hash_config() do
+    Application.get_env(:ex_aws_s3, :content_hash_algorithm) || :md5
+  end
+
+  defp hash_header(alg) do
+    case alg do
+      :md5 -> "content-md5"
+    end
+  end
+
+  @spec pair_tuple_to_map({term(), term()}) :: map()
+  defp pair_tuple_to_map(tuple), do: Map.new([tuple])
 
   @type put_object_copy_opts :: [
           {:metadata_directive, :COPY | :REPLACE}
