@@ -350,8 +350,8 @@ defmodule ExAws.S3 do
       |> IO.iodata_to_binary()
 
     body = "<CORSConfiguration>#{rules}</CORSConfiguration>"
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
-    headers = %{"content-md5" => content_md5}
+    content_hash = :crypto.hash(:md5, body) |> Base.encode64()
+    headers = %{"content-md5" => content_hash}
 
     request(:put, bucket, "/", resource: "cors", body: body, headers: headers)
   end
@@ -412,8 +412,8 @@ defmodule ExAws.S3 do
 
     body = "<LifecycleConfiguration>#{rules}</LifecycleConfiguration>"
 
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
-    headers = %{"content-md5" => content_md5}
+    content_hash = :crypto.hash(:md5, body) |> Base.encode64()
+    headers = %{"content-md5" => content_hash}
 
     request(:put, bucket, "/", resource: "lifecycle", body: body, headers: headers)
   end
@@ -475,8 +475,8 @@ defmodule ExAws.S3 do
   @spec put_bucket_versioning(bucket :: binary, version_config :: binary) ::
           ExAws.Operation.S3.t()
   def put_bucket_versioning(bucket, version_config) do
-    content_md5 = :crypto.hash(:md5, version_config) |> Base.encode64()
-    headers = %{"content-md5" => content_md5}
+    content_hash = :crypto.hash(:md5, version_config) |> Base.encode64()
+    headers = %{"content-md5" => content_hash}
     request(:put, bucket, "/", resource: "versioning", body: version_config, headers: headers)
   end
 
@@ -572,12 +572,12 @@ defmodule ExAws.S3 do
       "</Delete>"
     ]
 
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+    content_hash = :crypto.hash(:md5, body) |> Base.encode64()
     body_binary = body |> IO.iodata_to_binary()
 
     request(:post, bucket, "/?delete",
       body: body_binary,
-      headers: %{"content-md5" => content_md5}
+      headers: %{"content-md5" => content_hash}
     )
   end
 
@@ -978,12 +978,12 @@ defmodule ExAws.S3 do
       "</Tagging>"
     ]
 
-    # content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+    # content_hash = :crypto.hash(:md5, body) |> Base.encode64()
 
     headers =
       opts
       |> Map.new()
-#      |> Map.merge(%{"content-md5" => content_md5})
+#      |> Map.merge(%{"content-md5" => content_hash})
 
     body_binary = body |> IO.iodata_to_binary()
 
