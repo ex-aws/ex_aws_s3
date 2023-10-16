@@ -978,12 +978,12 @@ defmodule ExAws.S3 do
       "</Tagging>"
     ]
 
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+    # content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
 
     headers =
       opts
       |> Map.new()
-      |> Map.merge(%{"content-md5" => content_md5})
+#      |> Map.merge(%{"content-md5" => content_md5})
 
     body_binary = body |> IO.iodata_to_binary()
 
