@@ -1006,11 +1006,18 @@ defmodule ExAws.S3 do
     Application.get_env(:ex_aws_s3, :content_hash_algorithm) || :md5
   end
 
+  # TODO replace atom() with expected values
+
+  @spec hash_header(atom()) :: binary()
   defp hash_header(alg) do
     case alg do
-      :md5 -> "content-md5"
+      :md5 -> header_val(alg)
+      :sha256 -> header_val(alg)
     end
   end
+
+  @spec header_val(atom()) :: binary()
+  defp header_val(alg), do: "content-#{to_string(alg)}"
 
   @spec pair_tuple_to_map({term(), term()}) :: map()
   defp pair_tuple_to_map(tuple), do: Map.new([tuple])
