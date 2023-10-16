@@ -1,5 +1,9 @@
 # Changelog
 
+v2.5.2 (2023-10-16)
+
+- Properly fix typespec for presigned_url/5, and include support for Elixir datetime types.
+
 v2.5.1 (2023-10-12)
 
 - Fix typespec for presigned_url/5
