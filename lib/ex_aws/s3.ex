@@ -58,7 +58,7 @@ defmodule ExAws.S3 do
           | {:query_params, [{binary, binary}]}
           | {:headers, [{binary, binary}]}
           | {:bucket_as_host, boolean}
-          | {:start_datetime, DateTime.t()}
+          | {:start_datetime, Calendar.naive_datetime() | :calendar.datetime()}
         ]
 
   @type presigned_post_opts :: [
@@ -1322,7 +1322,17 @@ defmodule ExAws.S3 do
 
       false ->
         url = url_to_sign(bucket, object, config, virtual_host, bucket_as_host)
-        datetime = Keyword.get(opts, :start_datetime, :calendar.universal_time())
+
+        datetime =
+          Keyword.get(opts, :start_datetime, NaiveDateTime.utc_now())
+          |> case do
+            dt when is_struct(dt, DateTime) or is_struct(dt, NaiveDateTime) ->
+              NaiveDateTime.to_erl(dt)
+
+            # assume :calendar.datetime()
+            dt ->
+              dt
+          end
 
         ExAws.Auth.presigned_url(
           http_method,
