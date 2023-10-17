@@ -86,7 +86,7 @@ if Code.ensure_loaded?(SweetXml) do
 
     # In actual usage we've seen an error from a nil body being passed to
     # SweetXml, so we don't want to do that
-    def parse_upload_part_copy({:ok, resp})  do
+    def parse_upload_part_copy({:ok, resp}) do
       {:error, resp}
     end
 

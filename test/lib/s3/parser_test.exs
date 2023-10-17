@@ -308,11 +308,11 @@ defmodule ExAws.S3.ParserTest do
   describe "#parse_upload_part_copy" do
     test "parses a good response" do
       parse_upload_part_copy_response = """
-        <CopyPartResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-        <LastModified>2019-02-09T06:27:26.000Z</LastModified>
-        <ETag>&quot;7cbef1ad67ecd0d9ba35af98d3de5a94&quot;</ETag>
-        </CopyPartResult>
-        """
+      <CopyPartResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <LastModified>2019-02-09T06:27:26.000Z</LastModified>
+      <ETag>&quot;7cbef1ad67ecd0d9ba35af98d3de5a94&quot;</ETag>
+      </CopyPartResult>
+      """
 
       result =
         ExAws.S3.Parsers.parse_upload_part_copy({:ok, %{body: parse_upload_part_copy_response}})
