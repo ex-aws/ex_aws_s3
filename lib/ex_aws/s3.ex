@@ -757,6 +757,34 @@ defmodule ExAws.S3 do
     }
   end
 
+  def select_object_content(bucket, object_key, query, _opts \\ []) do
+    payload = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <SelectObjectContentRequest xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <Expression>#{query}</Expression>
+      <ExpressionType>SQL</ExpressionType>
+      <InputSerialization>
+        <CSV>
+          <FileHeaderInfo>USE</FileHeaderInfo>
+          <RecordDelimiter>\\n</RecordDelimiter>
+          <FieldDelimiter>,</FieldDelimiter>
+        </CSV>
+      </InputSerialization>
+      <OutputSerialization>
+      <JSON>
+        <RecordDelimiter>\n</RecordDelimiter>
+      </JSON>
+    </OutputSerialization>
+    </SelectObjectContentRequest>
+    """
+
+    params = %{"select" => "", "select-type" => "2"}
+
+    request(:post, bucket, object_key, [body: payload, params: params], %{
+      stream_builder: :event_stream
+    })
+  end
+
   @type upload_opt ::
           {:max_concurrency, pos_integer}
           | {:timeout, pos_integer}
