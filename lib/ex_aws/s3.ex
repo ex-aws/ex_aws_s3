@@ -85,9 +85,7 @@ defmodule ExAws.S3 do
   @spec list_buckets() :: ExAws.Operation.S3.t()
   @spec list_buckets(opts :: Keyword.t()) :: ExAws.Operation.S3.t()
   def list_buckets(opts \\ []) do
-    request(:get, "", "/", [params: opts],
-      parser: &ExAws.S3.Parsers.parse_all_my_buckets_result/1
-    )
+    request(:get, "", "/", [params: opts], parser: &ExAws.S3.Parsers.parse_all_my_buckets_result/1)
   end
 
   @doc "Delete a bucket"
@@ -574,7 +572,7 @@ defmodule ExAws.S3 do
 
     request(:post, bucket, "/?delete",
       body: body_binary,
-      headers: calculate_content_header(body)
+      headers: calculate_content_header(body_binary)
     )
   end
 
@@ -992,17 +990,18 @@ defmodule ExAws.S3 do
     )
   end
 
+  @spec calculate_content_header(iodata()) :: map()
   def calculate_content_header(content),
     do: calculate_content_hash(content) |> pair_tuple_to_map()
 
   @spec calculate_content_hash(iodata()) :: {binary(), binary()}
-  def calculate_content_hash(content) do
+  defp calculate_content_hash(content) do
     alg = get_hash_config()
     {hash_header(alg), :crypto.hash(alg, content) |> Base.encode64()}
   end
 
   @spec get_hash_config() :: :md5
-  def get_hash_config() do
+  defp get_hash_config() do
     Application.get_env(:ex_aws_s3, :content_hash_algorithm) || :md5
   end
 
