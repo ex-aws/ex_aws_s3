@@ -781,7 +781,7 @@ defmodule ExAws.S3 do
     params = %{"select" => "", "select-type" => "2"}
 
     request(:post, bucket, object_key, [body: payload, params: params], %{
-      stream_builder: :event_stream,
+      stream_builder: :octet_stream,
       parser: &Parsers.EventStream.parse_raw_stream/1
     })
   end
