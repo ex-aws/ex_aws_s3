@@ -782,20 +782,8 @@ defmodule ExAws.S3 do
 
     request(:post, bucket, object_key, [body: payload, params: params], %{
       stream_builder: :event_stream,
-      parser: &parse/1
+      parser: &Parsers.EventStream.parse_raw_stream/1
     })
-  end
-
-  def parse(
-        {:ok,
-         %{
-           stream: stream
-         }}
-      ) do
-    stream
-    |> Stream.map(&Parsers.EventStream.parse_message/1)
-    |> Stream.filter(&Parsers.EventStream.Message.is_record?/1)
-    |> Stream.map(&Parsers.EventStream.Message.get_payload/1)
   end
 
   @type upload_opt ::

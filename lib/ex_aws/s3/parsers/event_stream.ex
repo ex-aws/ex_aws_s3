@@ -21,9 +21,21 @@ defmodule ExAws.S3.Parsers.EventStream do
 
   alias ExAws.S3.Parsers.EventStream.Message
 
-  def parse_message(chunk) do
+  defp parse_message(chunk) do
     with {:ok, message} <- Message.parse(chunk) do
       message
     end
+  end
+
+  def parse_raw_stream(
+        {:ok,
+         %{
+           stream: stream
+         }}
+      ) do
+    stream
+    |> Stream.map(&parse_message/1)
+    |> Stream.filter(&Message.is_record?/1)
+    |> Stream.map(&Message.get_payload/1)
   end
 end
