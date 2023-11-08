@@ -77,10 +77,10 @@ defmodule ExAws.S3.SelectObjectContents do
         %{
           start: _range_start,
           end: _range_end
-        } = scan_range_input
+        } = scan_range
       ) do
     ExAws.S3.Utils.to_xml(%{
-      scan_range_input: scan_range_input
+      scan_range: scan_range
     })
   end
 
@@ -126,12 +126,14 @@ defmodule ExAws.S3.SelectObjectContents do
             bucket: bucket,
             path: path,
             query: query,
-            input_serialization: input_serialization,
-            output_serialization: output_serialization,
-            scan_range: scan_range
+            opts: opts
           },
           config
         ) do
+      input_serialization = opts[:input_serialization] || %{csv: %{}}
+      output_serialization = opts[:output_serialization] || %{csv: %{}}
+      scan_range = opts[:scan_range] || nil
+
       payload =
         SelectObjectContents.build_payload(
           query,
