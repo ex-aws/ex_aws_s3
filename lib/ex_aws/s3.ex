@@ -7,6 +7,7 @@ defmodule ExAws.S3 do
 
   import ExAws.S3.Utils
   alias ExAws.S3.Parsers
+  alias ExAws.S3.SelectObjectContents
 
   @type acl_opt :: {:acl, canned_acl} | grant
   @type acl_opts :: [acl_opt]
@@ -757,33 +758,26 @@ defmodule ExAws.S3 do
     }
   end
 
-  def select_object_content(bucket, object_key, query, _opts \\ []) do
-    payload = """
-    <?xml version="1.0" encoding="UTF-8"?>
-    <SelectObjectContentRequest xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <Expression>#{query}</Expression>
-      <ExpressionType>SQL</ExpressionType>
-      <InputSerialization>
-        <CSV>
-          <FileHeaderInfo>USE</FileHeaderInfo>
-          <RecordDelimiter>\\n</RecordDelimiter>
-          <FieldDelimiter>,</FieldDelimiter>
-        </CSV>
-      </InputSerialization>
-      <OutputSerialization>
-      <JSON>
-        <RecordDelimiter>\n</RecordDelimiter>
-      </JSON>
-    </OutputSerialization>
-    </SelectObjectContentRequest>
-    """
-
-    params = %{"select" => "", "select-type" => "2"}
-
-    request(:post, bucket, object_key, [body: payload, params: params], %{
-      stream_builder: :octet_stream,
-      parser: &Parsers.EventStream.parse_raw_stream/1
-    })
+  def select_object_content(
+        bucket,
+        path,
+        query,
+        input_serialization \\ %{
+          csv: %{}
+        },
+        output_serialization \\ %{
+          csv: %{}
+        },
+        scan_range \\ nil
+      ) do
+    %__MODULE__.SelectObjectContents{
+      bucket: bucket,
+      path: path,
+      query: query,
+      input_serialization: input_serialization,
+      output_serialization: output_serialization,
+      scan_range: scan_range
+    }
   end
 
   @type upload_opt ::

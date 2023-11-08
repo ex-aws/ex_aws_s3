@@ -345,4 +345,23 @@ defmodule ExAws.S3.Utils do
     {{datetime.year, datetime.month, datetime.day},
      {datetime.hour, datetime.minute, datetime.second}}
   end
+
+  def to_xml(map) when is_map(map) do
+    Enum.map(map, fn {key, value} ->
+      key = key |> Atom.to_string() |> Macro.camelize()
+      "<#{key}>#{to_xml(value)}</#{key}>"
+    end)
+    |> Enum.join()
+  end
+
+  def to_xml(list) when is_list(list) do
+    Enum.map(list, fn value ->
+      "<item>#{to_xml(value)}</item>"
+    end)
+    |> Enum.join()
+  end
+
+  def to_xml(value) when is_binary(value), do: value
+  def to_xml(value) when is_integer(value), do: Integer.to_string(value)
+  def to_xml(value) when is_float(value), do: Float.to_string(value)
 end
