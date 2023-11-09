@@ -1,4 +1,4 @@
-defmodule ExAws.AuthTest do
+defmodule ExAws.S3.EventStream.HeaderTest do
   use ExUnit.Case, async: true
 
   alias ExAws.S3.Parsers.EventStream.Header

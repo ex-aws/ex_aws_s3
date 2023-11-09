@@ -1,4 +1,4 @@
-defmodule ExAws.S3.SelectObjectContentsTest do
+defmodule ExAws.S3.SelectObjectContents.RequestTest do
   use ExUnit.Case, async: true
 
   alias ExAws.S3.SelectObjectContents
