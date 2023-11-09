@@ -7,6 +7,7 @@ defmodule ExAws.S3.Parsers.EventStream.Message do
   alias ExAws.S3.Parsers.EventStream.Prelude
   alias ExAws.S3.Parsers.EventStream.Header
   import Bitwise
+  require Logger
 
   defstruct prelude: nil,
             headers: nil,
@@ -53,6 +54,12 @@ defmodule ExAws.S3.Parsers.EventStream.Message do
 
   def get_payload(%__MODULE__{payload: payload}) do
     payload
+  end
+
+  def log_errors(%__MODULE__{headers: headers}) do
+    if Map.get(headers, ":message-type") == "error" do
+      Logger.error("Error in EventStream: #{inspect(headers)}")
+    end
   end
 
   def parse(chunk) do

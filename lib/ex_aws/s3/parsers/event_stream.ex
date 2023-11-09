@@ -17,6 +17,7 @@ defmodule ExAws.S3.Parsers.EventStream do
   # Refer to https://docs.aws.amazon.com/AmazonS3/latest/API/RESTSelectObjectAppendix.html for more information.
 
   alias ExAws.S3.Parsers.EventStream.Message
+  require Logger
 
   defp parse_message(chunk) do
     with {:ok, message} <- Message.parse(chunk) do
@@ -32,7 +33,12 @@ defmodule ExAws.S3.Parsers.EventStream do
       ) do
     stream
     |> Stream.map(&parse_message/1)
+    |> Stream.each(&Message.log_errors/1)
     |> Stream.filter(&Message.is_record?/1)
     |> Stream.map(&Message.get_payload/1)
+  end
+
+  def parse_raw_stream({:error, {:http_error, _, %{headers: _, status_code: _, stream: stream}}}) do
+    stream |> Enum.into("") |> Logger.error()
   end
 end
