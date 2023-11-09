@@ -1,4 +1,7 @@
 defmodule ExAws.S3.SelectObjectContents do
+  @moduledoc """
+  Represents the (SelectObjectContent)[https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html] operation.
+  """
   alias ExAws.S3.Utils
 
   @enforce_keys ~w(bucket path query)a
@@ -13,7 +16,6 @@ defmodule ExAws.S3.SelectObjectContents do
 
   @type t :: %__MODULE__{}
 
-  # https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html
   def input_params(%{
         csv: csv_input
       }) do
