@@ -1,11 +1,11 @@
-defmodule ExAws.S3.SelectObjectContents.RequestTest do
+defmodule ExAws.S3.SelectObjectContent.RequestTest do
   use ExUnit.Case, async: true
 
-  alias ExAws.S3.SelectObjectContents
+  alias ExAws.S3.SelectObjectContent
 
-  describe "SelectObjectContents.build_payload/4" do
+  describe "SelectObjectContent.build_payload/4" do
     test "default payload" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{csv: %{}},
                %{csv: %{}},
@@ -15,7 +15,7 @@ defmodule ExAws.S3.SelectObjectContents.RequestTest do
     end
 
     test "CSV input" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{
                  csv: %{
@@ -35,7 +35,7 @@ defmodule ExAws.S3.SelectObjectContents.RequestTest do
     end
 
     test "JSON Input" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{
                  json: %{
@@ -50,7 +50,7 @@ defmodule ExAws.S3.SelectObjectContents.RequestTest do
     end
 
     test "Parquet Input" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{
                  parquet: %{
@@ -64,7 +64,7 @@ defmodule ExAws.S3.SelectObjectContents.RequestTest do
     end
 
     test "CSV Output" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{csv: %{}},
                %{
@@ -83,7 +83,7 @@ defmodule ExAws.S3.SelectObjectContents.RequestTest do
     end
 
     test "JSON Output" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{csv: %{}},
                %{
@@ -97,7 +97,7 @@ defmodule ExAws.S3.SelectObjectContents.RequestTest do
     end
 
     test "Scan Range" do
-      assert SelectObjectContents.build_payload(
+      assert SelectObjectContent.build_payload(
                "select * from s3object",
                %{csv: %{}},
                %{csv: %{}},

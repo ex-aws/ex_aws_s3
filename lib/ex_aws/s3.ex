@@ -849,14 +849,14 @@ defmodule ExAws.S3 do
           path :: binary,
           query :: binary,
           opts :: select_object_content_opts
-        ) :: __MODULE__.SelectObjectContents.t()
+        ) :: __MODULE__.SelectObjectContent.t()
   def select_object_content(
         bucket,
         path,
         query,
         opts \\ []
       ) do
-    %__MODULE__.SelectObjectContents{
+    %__MODULE__.SelectObjectContent{
       bucket: bucket,
       path: path,
       query: query,

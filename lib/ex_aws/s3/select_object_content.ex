@@ -1,4 +1,4 @@
-defmodule ExAws.S3.SelectObjectContents do
+defmodule ExAws.S3.SelectObjectContent do
   @moduledoc """
   Represents the (SelectObjectContent)[https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html] operation.
   """
@@ -8,9 +8,6 @@ defmodule ExAws.S3.SelectObjectContents do
   defstruct bucket: nil,
             path: nil,
             query: nil,
-            input_serialization: nil,
-            output_serialization: nil,
-            scan_range: nil,
             opts: [],
             service: :s3
 
@@ -115,7 +112,7 @@ defmodule ExAws.S3.SelectObjectContents do
   end
 
   defimpl ExAws.Operation do
-    alias ExAws.S3.SelectObjectContents
+    alias ExAws.S3.SelectObjectContent
     alias ExAws.S3.Parsers.EventStream
 
     def perform(
@@ -139,7 +136,7 @@ defmodule ExAws.S3.SelectObjectContents do
       scan_range = opts[:scan_range] || nil
 
       payload =
-        SelectObjectContents.build_payload(
+        SelectObjectContent.build_payload(
           query,
           input_serialization,
           output_serialization,
