@@ -11,6 +11,8 @@ defmodule ExAws.S3.SelectObjectContents do
             opts: [],
             service: :s3
 
+  @type t :: %__MODULE__{}
+
   # https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html
   def input_params(%{
         csv: csv_input
