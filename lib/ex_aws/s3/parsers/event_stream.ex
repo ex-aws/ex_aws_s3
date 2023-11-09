@@ -1,23 +1,23 @@
 defmodule ExAws.S3.Parsers.EventStream do
-  @moduledoc """
-  Parses EventStream messages.
+  @moduledoc false
 
-  AWS encodes EventStream messages in binary as follows:
-  [      prelude     ][     headers   ][    payload    ][   message-crc  ]
-  |<--  12 bytes  -->|<-- variable -->|<-- variable -->|<--  4 bytes  -->|
+  # Parses EventStream messages.
 
-  This module parses this information and returns a struct with the prelude, headers and payload.
+  # AWS encodes EventStream messages in binary as follows:
+  # [      prelude     ][     headers   ][    payload    ][   message-crc  ]
+  # |<--  12 bytes  -->|<-- variable -->|<-- variable -->|<--  4 bytes  -->|
 
-  The prelude contains the total length of the message, the length of the headers, the length of the prelude, the CRC of the message, and the length of the payload.
+  # This module parses this information and returns a struct with the prelude, headers and payload.
 
-  The headers are a map of header names to values.
+  # The prelude contains the total length of the message, the length of the headers, the length of the prelude, the CRC of the message, and the length of the payload.
 
-  The payload is the actual message data.
+  # The headers are a map of header names to values.
 
-  The message-crc is a CRC32 checksum of the message (excluding the message-crc itself).
+  # The payload is the actual message data.
 
-  Refer to https://docs.aws.amazon.com/AmazonS3/latest/API/RESTSelectObjectAppendix.html for more information.
-  """
+  # The message-crc is a CRC32 checksum of the message (excluding the message-crc itself).
+
+  # Refer to https://docs.aws.amazon.com/AmazonS3/latest/API/RESTSelectObjectAppendix.html for more information.
 
   alias ExAws.S3.Parsers.EventStream.Message
 

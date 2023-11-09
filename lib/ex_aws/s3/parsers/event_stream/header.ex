@@ -1,15 +1,16 @@
 defmodule ExAws.S3.Parsers.EventStream.Header do
-  @moduledoc """
-  Parses EventStream headers.
+  @moduledoc false
 
-  AWS encodes EventStream headers as follows:
+  # Parses EventStream headers.
 
-  [header-name-size][header-name][header-data-type][header-value-size][header-value-data]
-  |<--  1 byte  -->|<-variable->|<--   1 byte  -->|<--  2 bytes   -->|<--  variable  -->|
+  # AWS encodes EventStream headers as follows:
 
-  This module parses this information and returns a map of header names - values.
-  header-data-type is always 0x07(String) for S3.
-  """
+  # [header-name-size][header-name][header-data-type][header-value-size][header-value-data]
+  # |<--  1 byte  -->|<-variable->|<--   1 byte  -->|<--  2 bytes   -->|<--  variable  -->|
+
+  # This module parses this information and returns a map of header names - values.
+  # header-data-type is always 0x07(String) for S3.
+
   alias ExAws.S3.Parsers.EventStream.Prelude
 
   def extract_headers(header_bytes) do

@@ -361,6 +361,7 @@ defmodule ExAws.S3.Utils do
     |> Enum.join()
   end
 
+  def to_xml(value) when is_atom(value), do: Atom.to_string(value) |> String.upcase()
   def to_xml(value) when is_binary(value), do: value
   def to_xml(value) when is_integer(value), do: Integer.to_string(value)
   def to_xml(value) when is_float(value), do: Float.to_string(value)

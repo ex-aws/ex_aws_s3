@@ -1,8 +1,9 @@
 defmodule ExAws.S3.Parsers.EventStream.Message do
-  @moduledoc """
-  Parses EventStream messages. This module parses this information and returns
-  a struct with the prelude, headers and payload. Also verifies the message CRC.
-  """
+  @moduledoc false
+
+  # Parses EventStream messages. This module parses this information and returns
+  # a struct with the prelude, headers and payload. Also verifies the message CRC.
+
   alias ExAws.S3.Parsers.EventStream.Prelude
   alias ExAws.S3.Parsers.EventStream.Header
   import Bitwise
