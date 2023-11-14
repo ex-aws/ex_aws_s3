@@ -1,6 +1,8 @@
 defmodule ExAws.S3.EventStream.MessageTest do
   use ExUnit.Case, async: true
 
+  alias ExAws.S3.Parsers.EventStream
+
   describe "Message.parse/1" do
     test "parses a binary EventStream Records chunk" do
       chunk =
@@ -23,8 +25,8 @@ defmodule ExAws.S3.EventStream.MessageTest do
           101, 34, 58, 34, 70, 105, 114, 101, 34, 125, 10, 66, 109, 206, 248>>
 
       assert {:ok,
-              %ExAws.S3.Parsers.EventStream.Message{
-                prelude: %ExAws.S3.Parsers.EventStream.Prelude{
+              %EventStream.Message{
+                prelude: %EventStream.Prelude{
                   total_length: 337,
                   headers_length: 85,
                   prelude_length: 12,
@@ -39,7 +41,7 @@ defmodule ExAws.S3.EventStream.MessageTest do
                 },
                 payload:
                   "{\"ID\":\"1\",\"Name\":\"Play\"}\n{\"ID\":\"2\",\"Name\":\"Detail\"}\n{\"ID\":\"3\",\"Name\":\"Director\"}\n{\"ID\":\"4\",\"Name\":\"Year\"}\n{\"ID\":\"5\",\"Name\":\"Present\"}\n{\"ID\":\"6\",\"Name\":\"Surface\"}\n{\"ID\":\"7\",\"Name\":\"A\"}\n{\"ID\":\"8\",\"Name\":\"Season\"}\n{\"ID\":\"9\",\"Name\":\"Fire\"}\n"
-              }} = ExAws.S3.Parsers.EventStream.Message.parse(chunk)
+              }} = parse(chunk)
     end
 
     test "parses a binary EventStream Stats chunk" do
@@ -59,8 +61,8 @@ defmodule ExAws.S3.EventStream.MessageTest do
           116, 115, 62, 8, 57, 236, 68>>
 
       assert {:ok,
-              %ExAws.S3.Parsers.EventStream.Message{
-                prelude: %ExAws.S3.Parsers.EventStream.Prelude{
+              %EventStream.Message{
+                prelude: %EventStream.Prelude{
                   total_length: 240,
                   headers_length: 67,
                   prelude_length: 12,
@@ -75,7 +77,12 @@ defmodule ExAws.S3.EventStream.MessageTest do
                 },
                 payload:
                   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Stats><BytesScanned>1001</BytesScanned><BytesProcessed>1001</BytesProcessed><BytesReturned>236</BytesReturned></Stats>"
-              }} = ExAws.S3.Parsers.EventStream.Message.parse(chunk)
+              }} = parse(chunk)
     end
+  end
+
+  defp parse(chunk) do
+    {:ok, prelude} = EventStream.Prelude.parse(chunk)
+    EventStream.parse_message(prelude, chunk)
   end
 end

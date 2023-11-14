@@ -5,7 +5,6 @@ defmodule ExAws.S3.Parsers.EventStream.Message do
   # a struct with the prelude, headers and payload. Also verifies the message CRC.
 
   alias ExAws.S3.Parsers.EventStream.Prelude
-  alias ExAws.S3.Parsers.EventStream.Header
   import Bitwise
   require Logger
 
@@ -56,19 +55,9 @@ defmodule ExAws.S3.Parsers.EventStream.Message do
     payload
   end
 
-  def log_errors(%__MODULE__{headers: headers}) do
+  def raise_errors!(%__MODULE__{headers: headers}) do
     if Map.get(headers, ":message-type") == "error" do
-      Logger.error("Error in EventStream: #{inspect(headers)}")
-    end
-  end
-
-  def parse(chunk) do
-    with {:ok, prelude, payload_bytes} <-
-           Prelude.parse(chunk),
-         :ok <- verify_message_crc(prelude, payload_bytes),
-         {:ok, headers} <- Header.parse(prelude, payload_bytes),
-         {:ok, payload} <- parse_payload(prelude, payload_bytes) do
-      {:ok, %__MODULE__{prelude: prelude, payload: payload, headers: headers}}
+      raise "Error message received: #{inspect(headers)}"
     end
   end
 end

@@ -78,11 +78,11 @@ defmodule ExAws.S3.Parsers.EventStream.Prelude do
     end
   end
 
-  def parse(<<prelude_bytes::binary-size(@prelude_length), _rest::binary>> = payload) do
+  def parse(<<prelude_bytes::binary-size(@prelude_length), _rest::binary>>) do
     with {:ok, unpacked_prelude} <- unpack_prelude(prelude_bytes),
          {:ok, prelude} <- validate_prelude(unpacked_prelude),
          :ok <- validate_checksum(prelude_bytes, unpacked_prelude.crc) do
-      {:ok, prelude, payload}
+      {:ok, prelude}
     end
   end
 end
