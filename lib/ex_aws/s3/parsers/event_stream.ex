@@ -26,8 +26,15 @@ defmodule ExAws.S3.Parsers.EventStream do
   end
 
   defp buffer_stream(chunk, {nil, buffer}) do
-    {:ok, prelude} = Prelude.parse(buffer <> chunk)
-    {[], {prelude, buffer <> chunk}}
+    payload = buffer <> chunk
+    {:ok, %Prelude{total_length: total_length} = prelude} = Prelude.parse(payload)
+
+    if total_length == byte_size(payload) do
+      {:ok, parsed_message} = parse_message(prelude, payload)
+      {[parsed_message], {nil, <<>>}}
+    else
+      buffer_stream(chunk, {prelude, buffer})
+    end
   end
 
   defp buffer_stream(chunk, {%Prelude{total_length: total_length} = prelude, buffer}) do
