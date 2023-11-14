@@ -690,6 +690,44 @@ defmodule ExAws.S3Test do
     assert url == "https://bucket.custom-domain.com"
   end
 
+  test "#select_object_content with input_serialization, output_serialization, and scan_range" do
+    expected = %ExAws.S3.SelectObjectContent{
+      bucket: "bucket",
+      opts: [
+        {:input_serialization,
+         %{csv: %{field_delimiter: ",", file_header_info: :use, record_delimiter: "\n"}}},
+        {:output_serialization, %{csv: %{field_delimiter: ",", record_delimiter: "\n"}}},
+        {:scan_range, %{end: 100, start: 0}}
+      ],
+      path: "object",
+      query: "select * from s3object",
+      service: :s3
+    }
+
+    assert S3.select_object_content(
+             "bucket",
+             "object",
+             "select * from s3object",
+             input_serialization: %{
+               csv: %{
+                 file_header_info: :use,
+                 record_delimiter: "\n",
+                 field_delimiter: ","
+               }
+             },
+             output_serialization: %{
+               csv: %{
+                 record_delimiter: "\n",
+                 field_delimiter: ","
+               }
+             },
+             scan_range: %{
+               start: 0,
+               end: 100
+             }
+           ) == expected
+  end
+
   @spec assert_pre_signed_url(
           url,
           expected_scheme_host_path,
