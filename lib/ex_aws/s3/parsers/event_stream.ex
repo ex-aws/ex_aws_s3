@@ -22,24 +22,24 @@ defmodule ExAws.S3.Parsers.EventStream do
   require Logger
 
   defp buffer_stream(stream) do
-    Stream.transform(stream, {nil, <<>>}, fn chunk, {prelude, buffer} ->
-      if(is_nil(prelude)) do
-        {:ok, prelude} = Prelude.parse(buffer <> chunk)
-        {[], {prelude, buffer <> chunk}}
-      else
-        remaining_bytes = prelude.total_length - byte_size(buffer)
+    Stream.transform(stream, {nil, <<>>}, &buffer_stream/2)
+  end
 
-        cond do
-          byte_size(chunk) < remaining_bytes ->
-            {[], {prelude, buffer <> chunk}}
+  defp buffer_stream(chunk, {nil, buffer}) do
+    {:ok, prelude} = Prelude.parse(buffer <> chunk)
+    {[], {prelude, buffer <> chunk}}
+  end
 
-          byte_size(chunk) >= remaining_bytes ->
-            <<payload::binary-size(remaining_bytes), remaining_buffer::binary>> = chunk
-            {:ok, parsed_message} = parse_message(prelude, buffer <> payload)
-            {[parsed_message], {nil, remaining_buffer}}
-        end
-      end
-    end)
+  defp buffer_stream(chunk, {%Prelude{total_length: total_length} = prelude, buffer}) do
+    remaining_bytes = total_length - byte_size(buffer)
+
+    if byte_size(chunk) < remaining_bytes do
+      {[], {prelude, buffer <> chunk}}
+    else
+      <<payload::binary-size(remaining_bytes), remaining_buffer::binary>> = chunk
+      {:ok, parsed_message} = parse_message(prelude, buffer <> payload)
+      {[parsed_message], {nil, remaining_buffer}}
+    end
   end
 
   defp chunk_stream_by_linebreaks(stream) do
