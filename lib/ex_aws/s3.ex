@@ -757,6 +757,113 @@ defmodule ExAws.S3 do
     }
   end
 
+  @type select_object_content_opts :: [
+          {:input_serialization, input_serialization}
+          | {:output_serialization, output_serialization}
+          | {:scan_range, scan_range}
+        ]
+
+  @type input_serialization ::
+          %{csv_input: csv_input} | %{json_input: json_input} | %{parquet_input: %{}}
+
+  @type csv_input :: %{
+          file_header_info: :none | :ignore | :use,
+          comments: binary,
+          quote_escape_character: binary,
+          record_delimiter: binary,
+          field_delimiter: binary,
+          quote_character: binary,
+          allow_quoted_record_delimiter: boolean
+        }
+  @type json_input :: %{
+          type: :document | :lines
+        }
+
+  @type output_serialization ::
+          %{csv_output: csv_output} | %{json_output: json_output}
+
+  @type csv_output :: %{
+          quote_fields: :always | :as_needed,
+          quote_escape_character: binary,
+          record_delimiter: binary,
+          field_delimiter: binary,
+          quote_character: binary
+        }
+
+  @type json_output :: %{
+          record_delimiter: binary
+        }
+
+  @type scan_range :: %{start: pos_integer, end: pos_integer}
+
+  @doc """
+  Filters and selects the contents of an Amazon S3 object based on an SQL statement.
+
+  ## Options
+  * `:input_serialization` - Specifies JSON, CSV, or Parquet as the input serialization format.
+     each of which has corresponding parameters to describe the format of the object to be retrieved.
+  * `:output_serialization` - Specifies JSON or CSV as the output serialization format.
+     Each of which has corresponding parameters to describe the format of the output data.
+  * `:scan_range` - Specifies the byte range of the object to get the records from.
+
+  More information can be found in the [AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html).
+
+
+  ## Example
+  ```
+  S3.select_object_content(
+    "my-bucket",
+    "path/to/file.csv",
+    "SELECT * FROM S3Object s WHERE s._1 = 'some value'",
+    input_serialization: %{
+      csv_input: %{
+        file_header_info: :use,
+        record_delimiter: "\\n",
+        field_delimiter: ",",
+        quote_character: "\\""
+      }
+    },
+    output_serialization: %{
+      csv_output: %{
+        record_delimiter: "\\n",
+        field_delimiter: ",",
+        quote_character: "\\""
+      }
+    }
+  ) |> ExAws.stream!()
+  ```
+
+  Note that **this won't start fetching anything immediately** since it returns an Elixir `Stream`.
+
+  ### Streaming into a file
+  ```
+  S3.select_object_content(
+    "my-bucket",
+    "path/to/file.csv",
+    "SELECT * FROM S3Object s WHERE s._1 = 'some value'"
+  ) |> ExAws.stream!() |> Stream.into(File.stream!("output.csv"))
+  ```
+  """
+  @spec select_object_content(
+          bucket :: binary,
+          path :: binary,
+          query :: binary,
+          opts :: select_object_content_opts
+        ) :: __MODULE__.SelectObjectContent.t()
+  def select_object_content(
+        bucket,
+        path,
+        query,
+        opts \\ []
+      ) do
+    %__MODULE__.SelectObjectContent{
+      bucket: bucket,
+      path: path,
+      query: query,
+      opts: opts
+    }
+  end
+
   @type upload_opt ::
           {:max_concurrency, pos_integer}
           | {:timeout, pos_integer}

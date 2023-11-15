@@ -132,4 +132,23 @@ defmodule ExAws.S3.ImplTest do
                "<Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>0</DaysAfterInitiation></AbortIncompleteMultipartUpload><NoncurrentVersionExpiration><NoncurrentDays>0</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><NoncurrentDays>0</NoncurrentDays><StorageClass></StorageClass></NoncurrentVersionTransition><Expiration><Days>0</Days><ExpiredObjectDeleteMarker>true</ExpiredObjectDeleteMarker></Expiration><Transition><Days>0</Days><StorageClass></StorageClass></Transition><Filter><Prefix>prefix/</Prefix></Filter><Status>Enabled</Status><ID>123</ID></Rule>"
     end
   end
+
+  describe "to_xml/1" do
+    test "renders a simple map" do
+      assert %{
+               foo: %{
+                 bar: "baz",
+                 qux: :quux,
+                 nested: %{foo: "bar"},
+                 num: 10,
+                 float: 10.0,
+                 bool: true,
+                 null: nil,
+                 snake_case: "camelCase"
+               }
+             }
+             |> Utils.to_xml() ==
+               "<Foo><Bar>baz</Bar><Bool>TRUE</Bool><Float>10.0</Float><Nested><Foo>bar</Foo></Nested><Null>NIL</Null><Num>10</Num><Qux>QUUX</Qux><SnakeCase>camelCase</SnakeCase></Foo>"
+    end
+  end
 end
