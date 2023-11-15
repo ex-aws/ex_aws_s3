@@ -11,6 +11,9 @@ defmodule ExAws.S3.Parsers.EventStream do
   # The prelude contains the total length of the message, the length of the headers,
   # the length of the prelude, the CRC of the message, and the length of the payload.
 
+  # Additionally, this module buffers the stream and parses the messages as they come in.
+  # Also, stream is transformed such that each item is seperated by line breaks
+
   # The headers are a map of header names to values.
   # The payload is the actual message data.
   # The message-crc is a CRC32 checksum of the message (excluding the message-crc itself).
@@ -92,11 +95,6 @@ defmodule ExAws.S3.Parsers.EventStream do
          }}
       ) do
     stream
-    # |> Stream.with_index()
-    # |> Stream.map(fn {chunk, index} ->
-    #   File.write!("ch/chunk_#{index}.bin", chunk)
-    #   chunk
-    # end)
     |> buffer_stream()
     |> Stream.each(&Message.raise_errors!/1)
     |> Stream.filter(&Message.is_record?/1)
