@@ -11,6 +11,9 @@ defmodule ExAws.S3.Parsers.EventStream do
   # The prelude contains the total length of the message, the length of the headers,
   # the length of the prelude, the CRC of the message, and the length of the payload.
 
+  # Additionally, this module buffers the stream and parses the messages as they come in.
+  # Also, stream is transformed such that each item is seperated by line breaks
+
   # The headers are a map of header names to values.
   # The payload is the actual message data.
   # The message-crc is a CRC32 checksum of the message (excluding the message-crc itself).
@@ -26,11 +29,11 @@ defmodule ExAws.S3.Parsers.EventStream do
   end
 
   defp buffer_stream(chunk, {nil, buffer}) do
-    payload = buffer <> chunk
-    {:ok, %Prelude{total_length: total_length} = prelude} = Prelude.parse(payload)
+    new_buffer = buffer <> chunk
+    {:ok, %Prelude{total_length: total_length} = prelude} = Prelude.parse(new_buffer)
 
-    if total_length == byte_size(payload) do
-      {:ok, parsed_message} = parse_message(prelude, payload)
+    if total_length == byte_size(new_buffer) do
+      {:ok, parsed_message} = parse_message(prelude, new_buffer)
       {[parsed_message], {nil, <<>>}}
     else
       buffer_stream(chunk, {prelude, buffer})
@@ -38,14 +41,27 @@ defmodule ExAws.S3.Parsers.EventStream do
   end
 
   defp buffer_stream(chunk, {%Prelude{total_length: total_length} = prelude, buffer}) do
-    remaining_bytes = total_length - byte_size(buffer)
+    new_buffer = buffer <> chunk
+    new_buffer_length = byte_size(new_buffer)
 
-    if byte_size(chunk) < remaining_bytes do
-      {[], {prelude, buffer <> chunk}}
-    else
-      <<payload::binary-size(remaining_bytes), remaining_buffer::binary>> = chunk
-      {:ok, parsed_message} = parse_message(prelude, buffer <> payload)
-      {[parsed_message], {nil, remaining_buffer}}
+    cond do
+      new_buffer_length < total_length ->
+        # needs more data. put it in the buffer and wait for more
+        {[], {prelude, new_buffer}}
+
+      new_buffer_length > total_length ->
+        # we have more than one message in the buffer. parse the first one and keep the rest in the buffer
+        <<payload::binary-size(total_length), remaining_buffer::binary>> = new_buffer
+        {:ok, parsed_message} = parse_message(prelude, payload)
+        {[parsed_message], {nil, remaining_buffer}}
+
+      new_buffer_length == total_length ->
+        # we have exactly one message in the buffer. parse it and clear the buffer
+        <<payload::binary-size(total_length), <<>>::binary>> =
+          new_buffer
+
+        {:ok, parsed_message} = parse_message(prelude, payload)
+        {[parsed_message], {nil, <<>>}}
     end
   end
 
@@ -78,7 +94,8 @@ defmodule ExAws.S3.Parsers.EventStream do
            stream: stream
          }}
       ) do
-    buffer_stream(stream)
+    stream
+    |> buffer_stream()
     |> Stream.each(&Message.raise_errors!/1)
     |> Stream.filter(&Message.is_record?/1)
     |> Stream.map(&Message.get_payload/1)
