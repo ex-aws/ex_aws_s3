@@ -760,6 +760,7 @@ defmodule ExAws.S3 do
   @type upload_opt ::
           {:max_concurrency, pos_integer}
           | {:timeout, pos_integer}
+          | {:refetch_auth_on_request, boolean}
           | initiate_multipart_upload_opt
   @type upload_opts :: [upload_opt]
 
@@ -786,6 +787,9 @@ defmodule ExAws.S3 do
   * See `Task.async_stream/5`'s `:max_concurrency` and `:timeout` options.
     * `:max_concurrency` - only applies when uploading a stream. Sets the maximum number of tasks to run at the same time. Defaults to `4`
     * `:timeout` - the maximum amount of time (in milliseconds) each task is allowed to execute for. Defaults to `30_000`.
+    * `:refetch_auth_on_request` - re-fetch the auth from the library config on each request in the upload process instead of using
+      the initial auth. Fixes an edge case uploading large files when using a strategy from `ex_aws_sts` that provides short lived tokens,
+      where uploads could fail if the token expires before the upload is completed. Defaults to `false`.
 
   All other options (ex. `:content_type`) are passed through to
   `ExAws.S3.initiate_multipart_upload/3`.

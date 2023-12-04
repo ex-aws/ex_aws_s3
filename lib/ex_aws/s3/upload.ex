@@ -115,6 +115,17 @@ defimpl ExAws.Operation, for: ExAws.S3.Upload do
   alias ExAws.S3.Upload
 
   def perform(op, config) do
+    # The upload will fail if using a strategy from `ex_aws_sts` and
+    # the authentication expires before this request is made. Dropping
+    # the authentication ensures the values will be fetched fresh from either the auth
+    # cache or the environment variables
+    config =
+      if Keyword.get(op.opts, :refetch_auth_on_request, false) do
+        Map.drop(config, [:access_key_id, :secret_access_key])
+      else
+        config
+      end
+
     with {:ok, op} <- Upload.initialize(op, config) do
       vals =
         op.src
