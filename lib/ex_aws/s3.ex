@@ -85,9 +85,7 @@ defmodule ExAws.S3 do
   @spec list_buckets() :: ExAws.Operation.S3.t()
   @spec list_buckets(opts :: Keyword.t()) :: ExAws.Operation.S3.t()
   def list_buckets(opts \\ []) do
-    request(:get, "", "/", [params: opts],
-      parser: &ExAws.S3.Parsers.parse_all_my_buckets_result/1
-    )
+    request(:get, "", "/", [params: opts], parser: &ExAws.S3.Parsers.parse_all_my_buckets_result/1)
   end
 
   @doc "Delete a bucket"
@@ -350,8 +348,8 @@ defmodule ExAws.S3 do
       |> IO.iodata_to_binary()
 
     body = "<CORSConfiguration>#{rules}</CORSConfiguration>"
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
-    headers = %{"content-md5" => content_md5}
+
+    headers = calculate_content_header(body)
 
     request(:put, bucket, "/", resource: "cors", body: body, headers: headers)
   end
@@ -412,8 +410,7 @@ defmodule ExAws.S3 do
 
     body = "<LifecycleConfiguration>#{rules}</LifecycleConfiguration>"
 
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
-    headers = %{"content-md5" => content_md5}
+    headers = calculate_content_header(body)
 
     request(:put, bucket, "/", resource: "lifecycle", body: body, headers: headers)
   end
@@ -475,8 +472,7 @@ defmodule ExAws.S3 do
   @spec put_bucket_versioning(bucket :: binary, version_config :: binary) ::
           ExAws.Operation.S3.t()
   def put_bucket_versioning(bucket, version_config) do
-    content_md5 = :crypto.hash(:md5, version_config) |> Base.encode64()
-    headers = %{"content-md5" => content_md5}
+    headers = calculate_content_header(version_config)
     request(:put, bucket, "/", resource: "versioning", body: version_config, headers: headers)
   end
 
@@ -572,12 +568,11 @@ defmodule ExAws.S3 do
       "</Delete>"
     ]
 
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
     body_binary = body |> IO.iodata_to_binary()
 
     request(:post, bucket, "/?delete",
       body: body_binary,
-      headers: %{"content-md5" => content_md5}
+      headers: calculate_content_header(body_binary)
     )
   end
 
@@ -978,12 +973,12 @@ defmodule ExAws.S3 do
       "</Tagging>"
     ]
 
-    content_md5 = :crypto.hash(:md5, body) |> Base.encode64()
+    {ct, content_hash} = calculate_content_hash(body)
 
     headers =
       opts
       |> Map.new()
-      |> Map.merge(%{"content-md5" => content_md5})
+      |> Map.merge(%{ct => content_hash})
 
     body_binary = body |> IO.iodata_to_binary()
 
@@ -994,6 +989,29 @@ defmodule ExAws.S3 do
       params: params
     )
   end
+
+  @spec calculate_content_header(iodata()) :: map()
+  def calculate_content_header(content),
+    do: calculate_content_hash(content) |> pair_tuple_to_map()
+
+  @spec calculate_content_hash(iodata()) :: {binary(), binary()}
+  defp calculate_content_hash(content) do
+    alg = get_hash_config()
+    {hash_header(alg), :crypto.hash(alg, content) |> Base.encode64()}
+  end
+
+  @spec get_hash_config() :: :md5
+  defp get_hash_config() do
+    Application.get_env(:ex_aws_s3, :content_hash_algorithm) || :md5
+  end
+
+  # Supported hash algorithms:
+  # https://www.erlang.org/doc/man/crypto.html#type-hash_algorithm
+  @spec hash_header(atom()) :: binary()
+  defp hash_header(alg) when is_atom(alg), do: "content-#{to_string(alg)}"
+
+  @spec pair_tuple_to_map({term(), term()}) :: map()
+  defp pair_tuple_to_map(tuple), do: Map.new([tuple])
 
   @type put_object_copy_opts :: [
           {:metadata_directive, :COPY | :REPLACE}

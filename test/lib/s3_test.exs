@@ -690,6 +690,15 @@ defmodule ExAws.S3Test do
     assert url == "https://bucket.custom-domain.com"
   end
 
+  describe "Content hash header" do
+    test "MD5" do
+      body = "hello world"
+      content_hash = :crypto.hash(:md5, body) |> Base.encode64()
+      expected = %{"content-md5" => content_hash}
+      assert ExAws.S3.calculate_content_header("hello world") === expected
+    end
+  end
+
   @spec assert_pre_signed_url(
           url,
           expected_scheme_host_path,
