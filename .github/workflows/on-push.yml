@@ -18,6 +18,8 @@ jobs:
             elixir: 1.12.x
           - otp: 23.x
             elixir: 1.15.x
+          - otp: 23.x
+            elixir: 1.16.x
     steps:
       - uses: actions/checkout@v2
       - uses: erlef/setup-beam@v1
