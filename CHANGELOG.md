@@ -1,5 +1,12 @@
 # Changelog
 
+v2.5.3 (2024-01-11)
+
+- Add option to get auth from AuthCache on every request when uploading to S3 in a stream
+- Fix dialyzer warnings with Elixir 1.16
+- Allow hash types other than MD5 when generating body hash
+- Fix error handling for `parse_upload_part_copy`
+
 v2.5.2 (2023-10-16)
 
 - Properly fix typespec for presigned_url/5, and include support for Elixir datetime types.
