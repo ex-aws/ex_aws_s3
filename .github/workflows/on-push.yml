@@ -29,7 +29,7 @@ jobs:
       - run: mix deps.get
       - run: mix compile
       - run: mix format --check-formatted
-        if: matrix.elixir == '1.15.x' # Only check formatting with the latest version
+        if: matrix.elixir == '1.16.x' # Only check formatting with the latest version
       - run: mix dialyzer
-        if: matrix.elixir == '1.15.x'
+        if: matrix.elixir == '1.16.x'
       - run: mix test
