@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         otp: [23.x, 24.x, 25.x]
-        elixir: [1.11.x, 1.12.x, 1.13.x, 1.14.x, 1.15.x]
+        elixir: [1.11.x, 1.12.x, 1.13.x, 1.14.x, 1.15.x, 1.16.x]
         exclude:
           - otp: 25.x
             elixir: 1.11.x
@@ -18,6 +18,8 @@ jobs:
             elixir: 1.12.x
           - otp: 23.x
             elixir: 1.15.x
+          - otp: 23.x
+            elixir: 1.16.x
     steps:
       - uses: actions/checkout@v2
       - uses: erlef/setup-beam@v1
@@ -27,7 +29,7 @@ jobs:
       - run: mix deps.get
       - run: mix compile
       - run: mix format --check-formatted
-        if: matrix.elixir == '1.15.x' # Only check formatting with the latest version
+        if: matrix.elixir == '1.16.x' # Only check formatting with the latest version
       - run: mix dialyzer
-        if: matrix.elixir == '1.15.x'
+        if: matrix.elixir == '1.16.x'
       - run: mix test

@@ -67,8 +67,12 @@ defmodule ExAws.S3.Upload do
   """
   @spec stream_file(path :: binary) :: File.Stream.t()
   @spec stream_file(path :: binary, opts :: [chunk_size: pos_integer]) :: File.Stream.t()
-  def stream_file(path, opts \\ []) do
-    File.stream!(path, [], opts[:chunk_size] || 5 * 1024 * 1024)
+  if Version.compare(System.version(), "1.16.0") in [:gt, :eq] do
+    def stream_file(path, opts \\ []),
+      do: File.stream!(path, opts[:chunk_size] || 5 * 1024 * 1024)
+  else
+    def stream_file(path, opts \\ []),
+      do: File.stream!(path, [], opts[:chunk_size] || 5 * 1024 * 1024)
   end
 
   @doc """
