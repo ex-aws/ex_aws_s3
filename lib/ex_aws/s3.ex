@@ -1006,7 +1006,7 @@ defmodule ExAws.S3 do
     {hash_header(alg), :crypto.hash(alg, content) |> Base.encode64()}
   end
 
-  @spec get_hash_config() :: :md5
+  @spec get_hash_config() :: atom()
   defp get_hash_config() do
     Application.get_env(:ex_aws_s3, :content_hash_algorithm) || :md5
   end
