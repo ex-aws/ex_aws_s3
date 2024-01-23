@@ -338,8 +338,30 @@ defmodule ExAws.S3Test do
              ])
   end
 
+  test "#delete_multiple_objects sha1" do
+    set_content_hash_algorithm(:sha)
+
+    expected = %Operation.S3{
+      body:
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
+      bucket: "bucket",
+      path: "/?delete",
+      headers: %{"x-amz-checksum-sha1" => "1uLbLBmwtufR1/csrQPCAONFeKU="},
+      http_method: :post
+    }
+
+    assert expected ==
+             S3.delete_multiple_objects("bucket", [
+               "foo",
+               {"bar", "v1"},
+               "special characters: '\"&<>\r\n"
+             ])
+
+    on_exit(&unset_content_hash_algorithm/0)
+  end
+
   test "#delete_multiple_objects sha256" do
-    set_content_hash_algorithm()
+    set_content_hash_algorithm(:sha256)
 
     expected = %Operation.S3{
       body:
@@ -357,7 +379,7 @@ defmodule ExAws.S3Test do
                "special characters: '\"&<>\r\n"
              ])
 
-    unset_content_hash_algorithm()
+    on_exit(&unset_content_hash_algorithm/0)
   end
 
   test "#post_object_restore" do
@@ -721,20 +743,31 @@ defmodule ExAws.S3Test do
       assert ExAws.S3.calculate_content_header("hello world") === expected
     end
 
+    test "SHA1" do
+      set_content_hash_algorithm(:sha)
+
+      body = "hello world"
+      content_hash = :crypto.hash(:sha, body) |> Base.encode64()
+      expected = %{"x-amz-checksum-sha1" => content_hash}
+      assert ExAws.S3.calculate_content_header("hello world") === expected
+
+      on_exit(&unset_content_hash_algorithm/0)
+    end
+
     test "SHA256" do
-      set_content_hash_algorithm()
+      set_content_hash_algorithm(:sha256)
 
       body = "hello world"
       content_hash = :crypto.hash(:sha256, body) |> Base.encode64()
       expected = %{"x-amz-checksum-sha256" => content_hash}
       assert ExAws.S3.calculate_content_header("hello world") === expected
 
-      unset_content_hash_algorithm()
+      on_exit(&unset_content_hash_algorithm/0)
     end
   end
 
-  defp set_content_hash_algorithm() do
-    Application.put_env(:ex_aws_s3, :content_hash_algorithm, :sha256)
+  defp set_content_hash_algorithm(alg) do
+    Application.put_env(:ex_aws_s3, :content_hash_algorithm, alg)
   end
 
   defp unset_content_hash_algorithm() do
