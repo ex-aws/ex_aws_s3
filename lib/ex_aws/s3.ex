@@ -1014,7 +1014,8 @@ defmodule ExAws.S3 do
   # Supported hash algorithms:
   # https://www.erlang.org/doc/man/crypto.html#type-hash_algorithm
   @spec hash_header(atom()) :: binary()
-  defp hash_header(alg) when is_atom(alg), do: "content-#{to_string(alg)}"
+  defp hash_header(:md5), do: "content-md5"
+  defp hash_header(alg) when is_atom(alg), do: "x-amz-checksum-#{to_string(alg)}"
 
   @spec pair_tuple_to_map({term(), term()}) :: map()
   defp pair_tuple_to_map(tuple), do: Map.new([tuple])
