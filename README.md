@@ -107,7 +107,7 @@ config :ex_aws, :s3,
   port: 9000
 ```
 
-An alternate `content_hash_algorithm` can be specified as well. The default is `:md5`. It may be necessary to change this when operating in a FIPS-compliant environment where MD5 isn't available, for instance. At this time, only `:sha256` and `:sha` are supported by both Erlang and S3.
+An alternate `content_hash_algorithm` can be specified as well. The default is `:md5`. It may be necessary to change this when operating in a FIPS-compliant environment where MD5 isn't available, for instance. At this time, only `:sha256`, `:sha`, and `:md5` are supported by both Erlang and S3.
 
 ``` elixir
 # config.exs
