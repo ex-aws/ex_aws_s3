@@ -80,12 +80,12 @@ defmodule ExAws.S3 do
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
 
   @typedoc """
-  The hashing algorithms that S3 supports for content integrity.
-  Erlang only supports sha1 and sha256.
+  The hashing algorithms that both S3 and Erlang support.
 
   https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+  https://www.erlang.org/doc/man/crypto.html#type-hash_algorithm
   """
-  @type hash_algorithm :: :crc32 | :crc32c | :sha1 | :sha256
+  @type hash_algorithm :: :sha | :sha256 | :md5
 
   ## Buckets
   #############
@@ -1014,7 +1014,7 @@ defmodule ExAws.S3 do
     {hash_header(alg), :crypto.hash(alg, content) |> Base.encode64()}
   end
 
-  @spec get_hash_config() :: atom()
+  @spec get_hash_config() :: hash_algorithm()
   defp get_hash_config() do
     Application.get_env(:ex_aws_s3, :content_hash_algorithm) || :md5
   end
