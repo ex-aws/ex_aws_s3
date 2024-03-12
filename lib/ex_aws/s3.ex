@@ -1117,6 +1117,7 @@ defmodule ExAws.S3 do
           | {:expires, binary}
           | {:website_redirect_location, binary}
           | {:encryption, encryption_opts}
+          | {:meta, amz_meta_opts}
           | acl_opt
           | storage_class_opt
   @type initiate_multipart_upload_opts :: [initiate_multipart_upload_opt]
