@@ -1,5 +1,6 @@
 defmodule ExAws.S3Test do
-  use ExUnit.Case, async: true
+  # Setting async: false since we're modifying Application env
+  use ExUnit.Case, async: false
   alias ExAws.{S3, Operation}
 
   test "#list_objects" do
@@ -335,6 +336,50 @@ defmodule ExAws.S3Test do
                {"bar", "v1"},
                "special characters: '\"&<>\r\n"
              ])
+  end
+
+  test "#delete_multiple_objects sha1" do
+    set_content_hash_algorithm(:sha)
+
+    expected = %Operation.S3{
+      body:
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
+      bucket: "bucket",
+      path: "/?delete",
+      headers: %{"x-amz-checksum-sha1" => "1uLbLBmwtufR1/csrQPCAONFeKU="},
+      http_method: :post
+    }
+
+    assert expected ==
+             S3.delete_multiple_objects("bucket", [
+               "foo",
+               {"bar", "v1"},
+               "special characters: '\"&<>\r\n"
+             ])
+
+    on_exit(&unset_content_hash_algorithm/0)
+  end
+
+  test "#delete_multiple_objects sha256" do
+    set_content_hash_algorithm(:sha256)
+
+    expected = %Operation.S3{
+      body:
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
+      bucket: "bucket",
+      path: "/?delete",
+      headers: %{"x-amz-checksum-sha256" => "Hsce+MZp64Uy8CwyResJ3y13YGw6jDAAdVGFmFPKPSs="},
+      http_method: :post
+    }
+
+    assert expected ==
+             S3.delete_multiple_objects("bucket", [
+               "foo",
+               {"bar", "v1"},
+               "special characters: '\"&<>\r\n"
+             ])
+
+    on_exit(&unset_content_hash_algorithm/0)
   end
 
   test "#post_object_restore" do
@@ -697,6 +742,36 @@ defmodule ExAws.S3Test do
       expected = %{"content-md5" => content_hash}
       assert ExAws.S3.calculate_content_header("hello world") === expected
     end
+
+    test "SHA1" do
+      set_content_hash_algorithm(:sha)
+
+      body = "hello world"
+      content_hash = :crypto.hash(:sha, body) |> Base.encode64()
+      expected = %{"x-amz-checksum-sha1" => content_hash}
+      assert ExAws.S3.calculate_content_header("hello world") === expected
+
+      on_exit(&unset_content_hash_algorithm/0)
+    end
+
+    test "SHA256" do
+      set_content_hash_algorithm(:sha256)
+
+      body = "hello world"
+      content_hash = :crypto.hash(:sha256, body) |> Base.encode64()
+      expected = %{"x-amz-checksum-sha256" => content_hash}
+      assert ExAws.S3.calculate_content_header("hello world") === expected
+
+      on_exit(&unset_content_hash_algorithm/0)
+    end
+  end
+
+  defp set_content_hash_algorithm(alg) do
+    Application.put_env(:ex_aws_s3, :content_hash_algorithm, alg)
+  end
+
+  defp unset_content_hash_algorithm() do
+    Application.delete_env(:ex_aws_s3, :content_hash_algorithm)
   end
 
   @spec assert_pre_signed_url(
