@@ -51,8 +51,10 @@ defmodule ExAws.S3 do
           | [aws_kms_key_id: binary]
           | customer_encryption_opts
 
+  @type expires_in_seconds :: non_neg_integer
+
   @type presigned_url_opts :: [
-          {:expires_in, integer}
+          {:expires_in, expires_in_seconds}
           | {:virtual_host, boolean}
           | {:s3_accelerate, boolean}
           | {:query_params, [{binary, binary}]}
@@ -62,7 +64,7 @@ defmodule ExAws.S3 do
         ]
 
   @type presigned_post_opts :: [
-          {:expires_in, integer}
+          {:expires_in, expires_in_seconds}
           | {:acl, binary | {:starts_with, binary}}
           | {:content_length_range, [integer]}
           | {:key, binary | {:starts_with, binary}}
