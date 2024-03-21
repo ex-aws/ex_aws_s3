@@ -1302,6 +1302,7 @@ defmodule ExAws.S3 do
 
   @doc """
   Generate a pre-signed URL for an object.
+  This is a local operation and does not check whether the bucket or object exists.
 
   When option param `:virtual_host` is `true`, the bucket name will be used in
   the hostname, along with the s3 default host which will look like -
