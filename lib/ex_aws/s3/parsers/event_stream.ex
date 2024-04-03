@@ -71,7 +71,7 @@ defmodule ExAws.S3.Parsers.EventStream do
         case String.split(buffer <> chunk, "\n") do
           lines when length(lines) > 1 ->
             last = Enum.at(lines, -1)
-            rest = Enum.slice(lines, 0..-2)
+            rest = Enum.slice(lines, 0..-2//1)
             {rest, last}
 
           [line] ->
