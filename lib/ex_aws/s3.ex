@@ -939,7 +939,14 @@ defmodule ExAws.S3 do
   @spec put_object(bucket :: binary, object :: binary, body :: binary, opts :: put_object_opts) ::
           ExAws.Operation.S3.t()
   def put_object(bucket, object, body, opts \\ []) do
-    request(:put, bucket, object, body: body, headers: put_object_headers(opts))
+    {ct, content_hash} = calculate_content_hash(body)
+
+    headers =
+      opts
+      |> put_object_headers()
+      |> Map.merge(%{ct => content_hash})
+
+    request(:put, bucket, object, body: body, headers: headers)
   end
 
   @doc "Create or update an object's access control policy"
