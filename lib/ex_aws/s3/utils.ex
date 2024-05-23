@@ -210,7 +210,13 @@ defmodule ExAws.S3.Utils do
       },
       noncurrent_version_expiration: %{
         tag: "NoncurrentVersionExpiration",
-        action_tags: fn _data -> [] end
+        action_tags: fn
+          %{newer_noncurrent_versions: versions} ->
+            [["<NewerNoncurrentVersions>", "#{versions}", "</NewerNoncurrentVersions>"]]
+
+          _ ->
+            []
+        end
       },
       abort_incomplete_multipart_upload: %{
         tag: "AbortIncompleteMultipartUpload",
