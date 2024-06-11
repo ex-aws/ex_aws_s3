@@ -404,6 +404,7 @@ defmodule ExAws.S3 do
           },
           noncurrent_version_expiration: %{
             trigger: {:days, 2} # Only days based
+            newer_noncurrent_versions: 10
           },
           abort_incomplete_multipart_upload: %{
             trigger: {:days, 2} # Only days based
