@@ -334,28 +334,36 @@ defmodule ExAws.S3.ParserTest do
     end
   end
 
-  test "#parse_complete_multipart_upload parses CompleteMultipartUploadResult" do
-    complete_multipart_upload_response = """
-    <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <Location>https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4</Location>
-      <Bucket>my-bucket</Bucket>
-      <Key>tmp-copy3.mp4</Key>
-      <ETag>&quot;17fbc0a106abbb6f381aac6e331f2a19-1&quot;</ETag>
-    </CompleteMultipartUploadResult>
-    """
+  describe "#parse_complete_multipart_upload" do
+    test "parses CompleteMultipartUploadResult" do
+      complete_multipart_upload_response = """
+      <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Location>https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4</Location>
+        <Bucket>my-bucket</Bucket>
+        <Key>tmp-copy3.mp4</Key>
+        <ETag>&quot;17fbc0a106abbb6f381aac6e331f2a19-1&quot;</ETag>
+      </CompleteMultipartUploadResult>
+      """
 
-    result =
-      ExAws.S3.Parsers.parse_complete_multipart_upload(
-        {:ok, %{body: complete_multipart_upload_response}}
-      )
+      result =
+        ExAws.S3.Parsers.parse_complete_multipart_upload(
+          {:ok, %{body: complete_multipart_upload_response}}
+        )
 
-    {:ok, %{body: body}} = result
+      {:ok, %{body: body}} = result
 
-    assert body == %{
-             location: "https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4",
-             bucket: "my-bucket",
-             key: "tmp-copy3.mp4",
-             etag: "\"17fbc0a106abbb6f381aac6e331f2a19-1\""
-           }
+      assert body == %{
+               location: "https://s3-eu-west-1.amazonaws.com/my-bucket/tmp-copy3.mp4",
+               bucket: "my-bucket",
+               key: "tmp-copy3.mp4",
+               etag: "\"17fbc0a106abbb6f381aac6e331f2a19-1\""
+             }
+    end
+
+    test "handles errors by passing them through" do
+      error = {:error, "error"}
+      result = ExAws.S3.Parsers.parse_complete_multipart_upload(error)
+      assert result == error
+    end
   end
 end
