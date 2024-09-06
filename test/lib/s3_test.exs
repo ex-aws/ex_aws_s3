@@ -294,6 +294,18 @@ defmodule ExAws.S3Test do
     assert expected == S3.delete_object("bucket", "object")
   end
 
+  test "#delete_object object must not be nil" do
+    assert_raise RuntimeError, "object must not be nil", fn ->
+      S3.delete_object("bucket", nil)
+    end
+  end
+
+  test "#delete_object object must not be empty string" do
+    assert_raise RuntimeError, "object must not be empty string", fn ->
+      S3.delete_object("bucket", "")
+    end
+  end
+
   test "#delete_object version_id option" do
     expected = %Operation.S3{
       body: "",

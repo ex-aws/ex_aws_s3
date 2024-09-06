@@ -509,13 +509,24 @@ defmodule ExAws.S3 do
   @spec delete_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t()
   @spec delete_object(bucket :: binary, object :: binary, opts :: delete_object_opts) ::
           ExAws.Operation.S3.t()
+  @spec delete_object(bucket :: binary, object :: nil) :: no_return
   @request_headers [
     :x_amz_mfa,
     :x_amz_request_payer,
     :x_amz_bypass_governance_retention,
     :x_amz_expected_bucket_owner
   ]
-  def delete_object(bucket, object, opts \\ []) do
+  def delete_object(bucket, object, opts \\ [])
+
+  def delete_object(_bucket, nil = _object, _opts) do
+    raise "object must not be nil"
+  end
+
+  def delete_object(_bucket, "" = _object, _opts) do
+    raise "object must not be empty string"
+  end
+
+  def delete_object(bucket, object, opts) do
     opts = opts |> Map.new()
 
     params =
