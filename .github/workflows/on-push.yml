@@ -67,7 +67,6 @@ jobs:
             ${{ runner.os }}-mix-${{matrix.pair.otp}}-${{matrix.pair.elixir}}-
       - run: mix deps.get
       - run: mix compile
-        if: ${{matrix.lint}}
       - run: mix format --check-formatted
         if: ${{matrix.lint}}
       - run: mix dialyzer
