@@ -1,7 +1,7 @@
 defmodule ExAws.S3.Mixfile do
   use Mix.Project
 
-  @version "2.5.3"
+  @version "2.5.4"
   @service "s3"
   @url "https://github.com/ex-aws/ex_aws_#{@service}"
   @name __MODULE__ |> Module.split() |> Enum.take(2) |> Enum.join(".")
@@ -10,7 +10,7 @@ defmodule ExAws.S3.Mixfile do
     [
       app: :ex_aws_s3,
       version: @version,
-      elixir: "~> 1.11",
+      elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),

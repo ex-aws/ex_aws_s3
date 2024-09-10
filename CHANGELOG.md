@@ -1,5 +1,17 @@
 # Changelog
 
+v2.5.4 (2024-09-10)
+
+- Add empty value checks for `delete_object`
+- Handle errors in `parse_complete_multipart_upload`
+- Add `newer_concurrent_versions` option to put lifecycle
+- Show changelog link on hex info page
+- Add missing `meta` opts from the upload type spec
+- Add `newer_noncurrent_versions` to `put_bucket_lifecycle`
+- Clarify in docs that presigned URLs are generated locally
+- Document the :expires_in type
+- Add checksum header when hash is not MD5
+
 v2.5.3 (2024-01-11)
 
 - Add option to get auth from AuthCache on every request when uploading to S3 in a stream
