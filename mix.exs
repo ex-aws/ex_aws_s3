@@ -29,7 +29,10 @@ defmodule ExAws.S3.Mixfile do
       files: ["lib", "config", "mix.exs", "README*"],
       maintainers: ["Bernard Duggan"],
       licenses: ["MIT"],
-      links: %{GitHub: @url}
+      links: %{
+        GitHub: @url,
+        Changelog: "#{@url}/blob/main/CHANGELOG.md"
+      }
     ]
   end
 
