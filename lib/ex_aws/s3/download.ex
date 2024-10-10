@@ -53,7 +53,13 @@ defmodule ExAws.S3.Download do
     headers
     |> Enum.find(fn {k, _} -> String.downcase(k) == "content-length" end)
     |> elem(1)
-    |> String.to_integer()
+    |> case do
+      content_length when is_binary(content_length) ->
+        content_length |> String.to_integer()
+
+      content_length when is_list(content_length) ->
+        content_length |> List.first() |> String.to_integer()
+    end
   end
 end
 
