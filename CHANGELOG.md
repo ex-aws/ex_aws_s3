@@ -1,5 +1,9 @@
 # Changelog
 
+v2.5.5 (2024-10-31)
+
+- Fix stream! handling when the client adapter models response headers as lists (eg Req)
+
 v2.5.4 (2024-09-10)
 
 - Add empty value checks for `delete_object`
