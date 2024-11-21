@@ -1246,7 +1246,7 @@ defmodule ExAws.S3 do
       |> Map.merge(source_encryption)
       |> Map.merge(destination_encryption)
 
-    first..last = source_range
+    first..last//_ = source_range
 
     headers =
       headers
