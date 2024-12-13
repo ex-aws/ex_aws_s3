@@ -1,5 +1,9 @@
 # Changelog
 
+v2.5.6 (2024-12-13)
+
+- Fix compilation warning on Elixir 1.17
+
 v2.5.5 (2024-10-31)
 
 - Fix stream! handling when the client adapter models response headers as lists (eg Req)
