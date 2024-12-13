@@ -32,7 +32,8 @@ defmodule ExAws.S3.Mixfile do
       links: %{
         GitHub: @url,
         Changelog: "#{@url}/blob/main/CHANGELOG.md"
-      }
+      },
+      exclude_patterns: [~r/.*~/]
     ]
   end
 
