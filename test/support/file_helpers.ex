@@ -18,7 +18,13 @@ defmodule Support.FileHelpers do
   Note: It doesn't appear this can be run with `use ExUnit.Case, async: true`
   """
   defmacro in_tmp(fun) do
-    path = Path.join([tmp_path(), "#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+    fn_name =
+      case __CALLER__.function do
+        {fn_name, _arity} -> fn_name
+        _ -> "unknown"
+      end
+
+    path = Path.join([tmp_path(), "#{__CALLER__.module}", "#{fn_name}"])
 
     quote do
       path = unquote(path)

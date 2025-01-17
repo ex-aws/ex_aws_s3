@@ -11,45 +11,48 @@ jobs:
       matrix:
         include:
           - pair:
-              otp: 27.x
-              elixir: 1.17.x
-              lint: lint
+              otp: "27"
+              elixir: "1.18"
+            lint: lint
+          - pair:
+              otp: "27"
+              elixir: "1.17"
 
           - pair:
-              otp: 26.x
-              elixir: 1.17.x
+              otp: "26"
+              elixir: "1.17"
           - pair:
-              otp: 26.x
-              elixir: 1.16.x
+              otp: "26"
+              elixir: "1.16"
           - pair:
-              otp: 26.x
-              elixir: 1.15.x
+              otp: "26"
+              elixir: "1.15"
 
           - pair:
-              otp: 25.x
-              elixir: 1.17.x
+              otp: "25"
+              elixir: "1.17"
           - pair:
-              otp: 25.x
-              elixir: 1.16.x
+              otp: "25"
+              elixir: "1.16"
           - pair:
-              otp: 25.x
-              elixir: 1.15.x
+              otp: "25"
+              elixir: "1.15"
           - pair:
-              otp: 25.x
-              elixir: 1.14.x
+              otp: "25"
+              elixir: "1.14"
 
           - pair:
-              otp: 24.x
-              elixir: 1.16.x
+              otp: "24"
+              elixir: "1.16"
           - pair:
-              otp: 24.x
-              elixir: 1.15.x
+              otp: "24"
+              elixir: "1.15"
           - pair:
-              otp: 24.x
-              elixir: 1.14.x
+              otp: "24"
+              elixir: "1.14"
           - pair:
-              otp: 24.x
-              elixir: 1.13.x
+              otp: "24"
+              elixir: "1.13"
 
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +60,7 @@ jobs:
         with:
           otp-version: ${{matrix.pair.otp}}
           elixir-version: ${{matrix.pair.elixir}}
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             deps
