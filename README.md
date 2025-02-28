@@ -36,7 +36,7 @@ end
 The vast majority of operations here represent a single operation on S3.
 
 #### Examples
-```
+```elixir
 S3.list_objects("my-bucket") |> ExAws.request! #=> %{body: [list, of, objects]}
 S3.list_objects("my-bucket") |> ExAws.stream! |> Enum.to_list #=> [list, of, objects]
 
@@ -49,7 +49,7 @@ There are also some operations which operate at a higher level to make it easier
 to download and upload very large files.
 
 Multipart uploads
-```
+```elixir
 "path/to/big/file"
 |> S3.Upload.stream_file
 |> S3.upload("my-bucket", "path/on/s3")
@@ -58,7 +58,7 @@ Multipart uploads
 See `ExAws.S3.upload/4` for options
 
 Download large file to disk
-```
+```elixir
 S3.download_file("my-bucket", "path/on/s3", "path/to/dest/file")
 |> ExAws.request #=> {:ok, :done}
 ```
@@ -69,7 +69,7 @@ Task.async_stream makes some high level flows so easy you don't need explicit Ex
 
 For example, here is how to concurrently upload many files.
 
-```
+```elixir
 upload_file = fn {src_path, dest_path} ->
   S3.put_object("my_bucket", dest_path, File.read!(src_path))
   |> ExAws.request!
@@ -84,7 +84,7 @@ paths
 
 ### Bucket as host functionality
 #### Examples
-```
+```elixir
 opts = [virtual_host: true, bucket_as_host: true]
 
 ExAws.Config.new(:s3)
