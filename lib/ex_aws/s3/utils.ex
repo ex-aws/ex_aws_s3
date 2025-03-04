@@ -18,6 +18,8 @@ defmodule ExAws.S3.Utils do
 
   @amz_headers [:website_redirect_location, :tagging, :tagging_directive]
 
+  @etag_headers [:if_match, :if_none_match]
+
   def put_object_headers(opts) do
     opts = opts |> Map.new()
 
@@ -29,6 +31,10 @@ defmodule ExAws.S3.Utils do
       opts
       |> format_and_take(@amz_headers)
       |> namespace("x-amz")
+
+    etag_headers =
+      opts
+      |> format_and_take(@etag_headers)
 
     storage_class_headers = format_storage_class_headers(opts)
 
@@ -46,6 +52,7 @@ defmodule ExAws.S3.Utils do
 
     regular_headers
     |> Map.merge(amz_headers)
+    |> Map.merge(etag_headers)
     |> Map.merge(storage_class_headers)
     |> Map.merge(acl_headers)
     |> Map.merge(encryption_headers)
