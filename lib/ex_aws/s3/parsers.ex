@@ -189,6 +189,8 @@ if Code.ensure_loaded?(SweetXml) do
 
       {:ok, %{resp | body: parsed_body}}
     end
+
+    def parse_bucket_object_versions(val), do: val
   end
 else
   defmodule ExAws.S3.Parsers do
