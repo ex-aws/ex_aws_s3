@@ -943,6 +943,8 @@ defmodule ExAws.S3 do
           | {:website_redirect_location, binary}
           | {:encryption, encryption_opts}
           | {:meta, amz_meta_opts}
+          | {:if_match, binary}
+          | {:if_none_match, binary}
           | acl_opt
           | storage_class_opt
         ]
