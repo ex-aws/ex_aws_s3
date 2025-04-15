@@ -1,5 +1,10 @@
 # Changelog
 
+v2.5.7 (2025-04-15)
+
+- Add support for `If-Match` and `If-None-Match` headers to `PutObject` call
+- Handle errors in `parse_bucket_object_versions/1`
+
 v2.5.6 (2024-12-13)
 
 - Fix compilation warning on Elixir 1.17
