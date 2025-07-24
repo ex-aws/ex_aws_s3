@@ -148,7 +148,7 @@ if Code.ensure_loaded?(SweetXml) do
 
     def parse_object_tagging(val), do: val
 
-    def parse_bucket_object_versions({:ok, resp = %{body: xml}}) do
+    def parse_object_versions({:ok, resp = %{body: xml}}) do
       parsed_body =
         SweetXml.xpath(xml, ~x"//ListVersionsResult",
           name: ~x"./Name/text()"s,
@@ -190,7 +190,7 @@ if Code.ensure_loaded?(SweetXml) do
       {:ok, %{resp | body: parsed_body}}
     end
 
-    def parse_bucket_object_versions(val), do: val
+    def parse_object_versions(val), do: val
   end
 else
   defmodule ExAws.S3.Parsers do
