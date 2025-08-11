@@ -229,6 +229,16 @@ defmodule ExAws.S3 do
     )
   end
 
+  @doc "List metadata about all versions of the objects in a bucket."
+  @spec list_object_versions(bucket :: binary) :: ExAws.Operation.S3.t()
+  @spec list_object_versions(bucket :: binary, opts :: Keyword.t()) ::
+          ExAws.Operation.S3.t()
+  def list_object_versions(bucket, opts \\ []) do
+    request(:get, bucket, "/", [resource: "versions", params: opts],
+      parser: &ExAws.S3.Parsers.parse_object_versions/1
+    )
+  end
+
   @doc "Get bucket acl"
   @spec get_bucket_acl(bucket :: binary) :: ExAws.Operation.S3.t()
   def get_bucket_acl(bucket) do
@@ -283,14 +293,13 @@ defmodule ExAws.S3 do
     request(:get, bucket, "/", resource: "tagging")
   end
 
-  @doc "Get bucket object versions"
+  @doc "List metadata about all versions of the objects in a bucket."
+  @deprecated "Use list_object_versions/2 instead"
   @spec get_bucket_object_versions(bucket :: binary) :: ExAws.Operation.S3.t()
   @spec get_bucket_object_versions(bucket :: binary, opts :: Keyword.t()) ::
           ExAws.Operation.S3.t()
   def get_bucket_object_versions(bucket, opts \\ []) do
-    request(:get, bucket, "/", [resource: "versions", params: opts],
-      parser: &ExAws.S3.Parsers.parse_bucket_object_versions/1
-    )
+    list_object_versions(bucket, opts)
   end
 
   @doc "Get bucket payment configuration"

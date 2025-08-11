@@ -196,7 +196,7 @@ defmodule ExAws.S3.ParserTest do
     assert body == %{tags: [%{key: "tag1", value: "val1"}, %{key: "tag2", value: "val2"}]}
   end
 
-  test "#parse_bucket_object_versions parses ListVersionsResult" do
+  test "#parse_object_versions parses ListVersionsResult" do
     response = ~S"""
     <ListVersionsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01">
     <Name>bucket</Name>
@@ -268,7 +268,7 @@ defmodule ExAws.S3.ParserTest do
     """
 
     assert {:ok, %{body: body}} =
-             ExAws.S3.Parsers.parse_bucket_object_versions({:ok, %{body: response}})
+             ExAws.S3.Parsers.parse_object_versions({:ok, %{body: response}})
 
     %{
       name: name,
