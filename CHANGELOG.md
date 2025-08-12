@@ -1,5 +1,8 @@
 # Changelog
 
+v2.5.8 (2025-08-12)
+- Rename `get_bucket_object_versions` to `list_object_versions`
+
 v2.5.7 (2025-04-15)
 
 - Add support for `If-Match` and `If-None-Match` headers to `PutObject` call
