@@ -204,5 +204,6 @@ else
     def parse_list_multipart_uploads(_val), do: missing_xml_parser()
     def parse_list_parts(_val), do: missing_xml_parser()
     def parse_object_tagging(_val), do: missing_xml_parser()
+    def parse_object_versions(_val), do: missing_xml_parser()
   end
 end

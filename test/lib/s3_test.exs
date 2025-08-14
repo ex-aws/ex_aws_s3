@@ -829,5 +829,238 @@ defmodule ExAws.S3Test do
     end
   end
 
+  test "#put_bucket_logging basic" do
+    expected = %Operation.S3{
+      body: """
+      <BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <LoggingEnabled>
+          <TargetBucket>logs-bucket</TargetBucket>
+          <TargetPrefix></TargetPrefix>
+        </LoggingEnabled>
+      </BucketLoggingStatus>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "logging",
+      headers: %{"content-md5" => "o2HZlksR1Z3YbY6mb7zRyw=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_logging("my-bucket", target_bucket: "logs-bucket")
+  end
+
+  test "#put_bucket_logging with prefix" do
+    expected = %Operation.S3{
+      body: """
+      <BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <LoggingEnabled>
+          <TargetBucket>logs-bucket</TargetBucket>
+          <TargetPrefix>access-logs/</TargetPrefix>
+        </LoggingEnabled>
+      </BucketLoggingStatus>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "logging",
+      headers: %{"content-md5" => "WbIGYlFOQ4nv4Zz2e+FOBg=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_logging("my-bucket",
+               target_bucket: "logs-bucket",
+               target_prefix: "access-logs/"
+             )
+  end
+
+  test "#put_bucket_notification simple SNS" do
+    expected = %Operation.S3{
+      body: """
+      <NotificationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <TopicConfiguration>
+
+      <Topic>arn:aws:sns:us-east-1:123456789012:my-topic</Topic>
+      <Event>s3:ObjectCreated:*</Event>
+
+      </TopicConfiguration>
+
+      </NotificationConfiguration>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "notification",
+      headers: %{"content-md5" => "Wd3+E8fYhbDjgjyJdikKdg=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_notification("my-bucket",
+               topic_arn: "arn:aws:sns:us-east-1:123456789012:my-topic",
+               events: ["s3:ObjectCreated:*"]
+             )
+  end
+
+  test "#put_bucket_notification simple Lambda with filters" do
+    expected = %Operation.S3{
+      body:
+        "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<LambdaConfiguration>\n\n<LambdaFunctionArn>arn:aws:lambda:us-east-1:123456789012:function:my-func</LambdaFunctionArn>\n<Event>s3:ObjectCreated:Put</Event>\n<Filter>\n  <S3Key>\n    <FilterRule><Name>suffix</Name><Value>.jpg</Value></FilterRule><FilterRule><Name>prefix</Name><Value>uploads/</Value></FilterRule>\n  </S3Key>\n</Filter>\n\n</LambdaConfiguration>\n\n</NotificationConfiguration>\n",
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "notification",
+      headers: %{"content-md5" => "HzL/gx+q6KdSU0nSXtlGdA=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_notification("my-bucket",
+               lambda_function_arn: "arn:aws:lambda:us-east-1:123456789012:function:my-func",
+               events: ["s3:ObjectCreated:Put"],
+               prefix: "uploads/",
+               suffix: ".jpg"
+             )
+  end
+
+  test "#put_bucket_replication simple" do
+    expected = %Operation.S3{
+      body:
+        "<ReplicationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n  <Role>arn:aws:iam::123456789012:role/replication-role</Role>\n  <Rule>\n  <ID>ReplicationRule</ID>\n  <Status>Enabled</Status>\n  \n  <Destination>\n  <Bucket>arn:aws:s3:::backup-bucket</Bucket>\n  <StorageClass>STANDARD_IA</StorageClass>\n  \n  \n</Destination>\n\n</Rule>\n\n</ReplicationConfiguration>\n",
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "replication",
+      headers: %{"content-md5" => "vzRqSudwA9DkuVqBeXDOJw=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_replication("my-bucket",
+               role: "arn:aws:iam::123456789012:role/replication-role",
+               destination_bucket: "arn:aws:s3:::backup-bucket",
+               storage_class: "STANDARD_IA"
+             )
+  end
+
+  test "#put_bucket_tagging basic" do
+    expected = %Operation.S3{
+      body:
+        ~s(<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet><Tag><Key>Environment</Key><Value>prod</Value></Tag><Tag><Key>Team</Key><Value>data</Value></Tag></TagSet></Tagging>),
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "tagging",
+      headers: %{"content-md5" => "thygjpJ3gHhMxMDMLh7t2A=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_tagging("my-bucket", Environment: "prod", Team: "data")
+  end
+
+  test "#put_bucket_tagging with map" do
+    expected = %Operation.S3{
+      body:
+        ~s(<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet><Tag><Key>Environment</Key><Value>test</Value></Tag></TagSet></Tagging>),
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "tagging",
+      headers: %{"content-md5" => "mlJj1uyX+gM7aKxzlF/qZA=="}
+    }
+
+    assert expected == S3.put_bucket_tagging("my-bucket", %{"Environment" => "test"})
+  end
+
+  test "#put_bucket_request_payment requester" do
+    expected = %Operation.S3{
+      body: """
+      <RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Payer>Requester</Payer>
+      </RequestPaymentConfiguration>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "requestPayment",
+      headers: %{"content-md5" => "nukorIYg1xaUbcH03PttFQ=="}
+    }
+
+    assert expected == S3.put_bucket_request_payment("my-bucket", :requester)
+  end
+
+  test "#put_bucket_request_payment bucket_owner" do
+    expected = %Operation.S3{
+      body: """
+      <RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Payer>BucketOwner</Payer>
+      </RequestPaymentConfiguration>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "requestPayment",
+      headers: %{"content-md5" => "neyNxbaCeZYR6lAHS1geAw=="}
+    }
+
+    assert expected == S3.put_bucket_request_payment("my-bucket", :bucket_owner)
+  end
+
+  test "#put_bucket_website simple" do
+    expected = %Operation.S3{
+      body:
+        "<WebsiteConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<IndexDocument><Suffix>index.html</Suffix></IndexDocument>\n</WebsiteConfiguration>\n",
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "website",
+      headers: %{"content-md5" => "Hkz3aiw9OZDoySr1wb2M5Q=="}
+    }
+
+    assert expected == S3.put_bucket_website("my-bucket", index_document: "index.html")
+  end
+
+  test "#put_bucket_website with error document" do
+    expected = %Operation.S3{
+      body: """
+      <WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <IndexDocument><Suffix>index.html</Suffix></IndexDocument><ErrorDocument><Key>error.html</Key></ErrorDocument>
+      </WebsiteConfiguration>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "website",
+      headers: %{"content-md5" => "YeJ6RDZpMLov4hg49HCwkw=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_website("my-bucket",
+               index_document: "index.html",
+               error_document: "error.html"
+             )
+  end
+
+  test "#put_bucket_website redirect all requests" do
+    expected = %Operation.S3{
+      body: """
+      <WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <RedirectAllRequestsTo>
+        <HostName>example.com</HostName>
+        <Protocol>https</Protocol>
+      </RedirectAllRequestsTo>
+
+      </WebsiteConfiguration>
+      """,
+      bucket: "my-bucket",
+      path: "/",
+      http_method: :put,
+      resource: "website",
+      headers: %{"content-md5" => "puljC8kEX1NQssevvG4gmQ=="}
+    }
+
+    assert expected ==
+             S3.put_bucket_website("my-bucket",
+               redirect_all_requests_to: %{host_name: "example.com", protocol: "https"}
+             )
+  end
+
   defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
 end
