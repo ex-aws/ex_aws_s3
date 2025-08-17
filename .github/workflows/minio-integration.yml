@@ -1,0 +1,82 @@
+name: MinIO Integration Tests
+on: [push, pull_request]
+
+env:
+  OTP_VERSION: "27"
+  ELIXIR_VERSION: "1.18"
+  MINIO_VERSION: "RELEASE.2025-07-23T15-54-02Z"
+  MIX_ENV: test
+
+permissions:
+  contents: read
+
+jobs:
+  minio-integration:
+    runs-on: ubuntu-24.04
+    name: MinIO Integration Tests
+
+    steps:
+      - name: Cache MinIO Docker image
+        id: cache-minio
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: docker-minio-${{ runner.os }}-quay.io/minio/minio:${{ env.MINIO_VERSION }}
+
+      - name: Load MinIO from cache or pull
+        run: |
+          if [[ -f /tmp/docker-cache/minio.tar ]]; then
+            echo "Loading MinIO image from cache"
+            docker load < /tmp/docker-cache/minio.tar
+          else
+            echo "Pulling MinIO image and saving to cache"
+            docker pull quay.io/minio/minio:${{ env.MINIO_VERSION }}
+            mkdir -p /tmp/docker-cache
+            docker save quay.io/minio/minio:${{ env.MINIO_VERSION }} > /tmp/docker-cache/minio.tar
+          fi
+
+      - name: Start MinIO
+        # Note: Port 9999 is dead, no round-trip tests
+        run: |
+          docker run -d \
+            --name minio \
+            -p 9000:9000 \
+            -e "MINIO_ROOT_USER=minio" \
+            -e "MINIO_ROOT_PASSWORD=miniosecret" \
+            -e "MINIO_NOTIFY_WEBHOOK_ENABLE_testhook=on" \
+            -e "MINIO_NOTIFY_WEBHOOK_ENDPOINT_testhook=http://localhost:9999" \
+            quay.io/minio/minio:${{ env.MINIO_VERSION }} \
+            server /data --address ":9000"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+
+      - name: Restore Mix deps cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile
+
+      - name: Ensure MinIO is ready
+        run: |
+          docker logs minio
+          timeout 60s bash -c 'until curl -fs http://localhost:9000/minio/health/live >/dev/null; do echo "MinIO not ready yet..."; sleep 2; done'
+
+      - name: Run MinIO integration tests
+        run: mix test.minio
