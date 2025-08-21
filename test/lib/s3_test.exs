@@ -491,6 +491,46 @@ defmodule ExAws.S3Test do
     assert_pre_signed_url(url, "https://bucket.custom-domain.com/foo.txt", "3600")
   end
 
+  test "#initiate_multipart_upload returns proper operation structure" do
+    # Test that the operation structure is created correctly
+    operation = S3.initiate_multipart_upload("my-bucket.custom-domain.com", "test-key.txt")
+    
+    assert operation.http_method == :post
+    assert operation.bucket == "my-bucket.custom-domain.com"
+    assert operation.path == "test-key.txt"
+    assert operation.resource == "uploads"
+  end
+
+  test "#presigned_url with bucket_as_host should not duplicate bucket in path" do
+    # Test the specific issue where bucket domain appears twice
+    config = config()
+    opts = [virtual_host: true, bucket_as_host: true]
+    
+    {:ok, url} = S3.presigned_url(config, :get, "my-custom-domain.com", "path/to/file.txt", opts)
+    
+    # Should not contain the bucket name in the path when bucket_as_host is true
+    refute String.contains?(url, "/my-custom-domain.com/path/to/file.txt")
+    # Should contain the correct path
+    assert String.contains?(url, "/path/to/file.txt")
+    # Should use the bucket as the hostname
+    assert String.starts_with?(url, "https://my-custom-domain.com/")
+  end
+
+  test "#presigned_url reads bucket_as_host and virtual_host from config" do
+    # Test that config values are used when options are not provided
+    config = config() |> Map.put(:virtual_host, true) |> Map.put(:bucket_as_host, true)
+    
+    {:ok, url} = S3.presigned_url(config, :get, "my-custom-domain.com", "path/to/file.txt")
+    
+    # Should use bucket as hostname even without explicit opts
+    assert String.starts_with?(url, "https://my-custom-domain.com/")
+    # Should not duplicate bucket name in path
+    refute String.contains?(url, "/my-custom-domain.com/path")
+    # Should contain the correct path
+    assert String.contains?(url, "/path/to/file.txt")
+  end
+
+
   test "#presigned_url passing query_params option" do
     query_params = [
       key_one: "value_one",

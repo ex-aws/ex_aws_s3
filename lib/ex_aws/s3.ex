@@ -1367,9 +1367,9 @@ defmodule ExAws.S3 do
   def presigned_url(config, http_method, bucket, object, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
     query_params = Keyword.get(opts, :query_params, [])
-    virtual_host = Keyword.get(opts, :virtual_host, false)
+    virtual_host = Keyword.get(opts, :virtual_host, config[:virtual_host] || false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
-    bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
+    bucket_as_host = Keyword.get(opts, :bucket_as_host, config[:bucket_as_host] || false)
     headers = Keyword.get(opts, :headers, [])
 
     {config, virtual_host} =
@@ -1431,9 +1431,9 @@ defmodule ExAws.S3 do
         ) :: presigned_post_result()
   def presigned_post(config, bucket, key, opts \\ []) do
     expires_in = Keyword.get(opts, :expires_in, 3600)
-    virtual_host = Keyword.get(opts, :virtual_host, false)
+    virtual_host = Keyword.get(opts, :virtual_host, config[:virtual_host] || false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
-    bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
+    bucket_as_host = Keyword.get(opts, :bucket_as_host, config[:bucket_as_host] || false)
     {:ok, datetime} = DateTime.now("Etc/UTC")
     expiration_date = DateTime.add(datetime, expires_in, :second)
     datetime = datetime_to_erlang_time(datetime)
