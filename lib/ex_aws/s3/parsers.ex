@@ -23,8 +23,7 @@ if Code.ensure_loaded?(SweetXml) do
             storage_class: ~x"./StorageClass/text()"s,
             owner: [
               ~x"./Owner"o,
-              id: ~x"./ID/text()"s,
-              display_name: ~x"./DisplayName/text()"s
+              id: ~x"./ID/text()"s
             ]
           ],
           common_prefixes: [
@@ -44,8 +43,7 @@ if Code.ensure_loaded?(SweetXml) do
         |> SweetXml.xpath(~x"//ListAllMyBucketsResult",
           owner: [
             ~x"./Owner",
-            id: ~x"./ID/text()"s,
-            display_name: ~x"./DisplayName/text()"s
+            id: ~x"./ID/text()"s
           ],
           buckets: [
             ~x".//Bucket"l,
@@ -169,7 +167,6 @@ if Code.ensure_loaded?(SweetXml) do
             size: ~x"./Size/text()"s,
             owner: [
               ~x"./Owner"e,
-              display_name: ~x"./DisplayName/text()"s,
               id: ~x"./ID/text()"s
             ]
           ],
@@ -181,7 +178,6 @@ if Code.ensure_loaded?(SweetXml) do
             last_modified: ~x"./LastModified/text()"s,
             owner: [
               ~x"./Owner"e,
-              display_name: ~x"./DisplayName/text()"s,
               id: ~x"./ID/text()"s
             ]
           ]
