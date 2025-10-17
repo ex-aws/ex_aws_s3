@@ -17,7 +17,6 @@ defmodule ExAws.S3.ParserTest do
         <Size>142863</Size>
         <Owner>
         <ID>canonical-user-id</ID>
-        <DisplayName>display-name</DisplayName>
         </Owner>
         <StorageClass>STANDARD</StorageClass>
       </Contents>
@@ -92,11 +91,9 @@ defmodule ExAws.S3.ParserTest do
       <UploadId>e3gloTamzXlqzgRfKIXrFBhnxCfM35jhktoh.wduDUJHy61R_hjglrx_rLguDGxmOvPeDfzJEK7mxgx7eRwPs9XbYXVmDywrRjbJSmqr.McfkCRDjuI4cdB72IYzfFJl</UploadId>
       <Initiator>
         <ID>arn:aws:iam::123456789012:user/username</ID>
-        <DisplayName>username</DisplayName>
       </Initiator>
       <Owner>
         <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-        <DisplayName>noone@example.com</DisplayName>
       </Owner>
       <StorageClass>STANDARD</StorageClass>
       <PartNumberMarker>0</PartNumberMarker>
@@ -119,11 +116,9 @@ defmodule ExAws.S3.ParserTest do
       <UploadId>e3gloTamzXlqzgRfKIXrFBhnxCfM35jhktoh.wduDUJHy61R_hjglrx_rLguDGxmOvPeDfzJEK7mxgx7eRwPs9XbYXVmDywrRjbJSmqr.McfkCRDjuI4cdB72IYzfFJl</UploadId>
       <Initiator>
         <ID>arn:aws:iam::123456789012:user/username</ID>
-        <DisplayName>username</DisplayName>
       </Initiator>
       <Owner>
         <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-        <DisplayName>noone@example.com</DisplayName>
       </Owner>
       <StorageClass>STANDARD</StorageClass>
       <PartNumberMarker>0</PartNumberMarker>
@@ -215,7 +210,6 @@ defmodule ExAws.S3.ParserTest do
         <StorageClass>STANDARD</StorageClass>
         <Owner>
             <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-            <DisplayName>noone@example.com</DisplayName>
         </Owner>
     </Version>
     <DeleteMarker>
@@ -225,7 +219,6 @@ defmodule ExAws.S3.ParserTest do
         <LastModified>2009-11-12T17:50:30.000Z</LastModified>
         <Owner>
             <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-            <DisplayName>noone@example.com</DisplayName>
         </Owner>
     </DeleteMarker>
     <Version>
@@ -238,7 +231,6 @@ defmodule ExAws.S3.ParserTest do
         <StorageClass>STANDARD</StorageClass>
         <Owner>
             <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-            <DisplayName>noone@example.com</DisplayName>
         </Owner>
     </Version>
     <DeleteMarker>
@@ -248,7 +240,6 @@ defmodule ExAws.S3.ParserTest do
         <LastModified>2009-10-15T17:50:30.000Z</LastModified>
         <Owner>
             <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-            <DisplayName>noone@example.com</DisplayName>
         </Owner>
     </DeleteMarker>
     <Version>
@@ -261,7 +252,6 @@ defmodule ExAws.S3.ParserTest do
         <StorageClass>STANDARD</StorageClass>
         <Owner>
             <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>
-            <DisplayName>noone@example.com</DisplayName>
         </Owner>
      </Version>
     </ListVersionsResult>
@@ -294,7 +284,6 @@ defmodule ExAws.S3.ParserTest do
     assert version1[:size] == "434234"
     assert version1[:last_modified] == "2009-10-12T17:50:30.000Z"
     assert is_map(version1[:owner])
-    assert version1[:owner][:display_name] == "noone@example.com"
 
     delete_marker1 = Enum.at(delete_markers, 0)
     assert delete_marker1[:key] == "my-second-image.jpg"
@@ -302,7 +291,6 @@ defmodule ExAws.S3.ParserTest do
     assert delete_marker1[:is_latest] == "true"
     assert delete_marker1[:last_modified] == "2009-11-12T17:50:30.000Z"
     assert is_map(delete_marker1[:owner])
-    assert delete_marker1[:owner][:display_name] == "noone@example.com"
   end
 
   describe "#parse_upload_part_copy" do

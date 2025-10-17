@@ -11,7 +11,6 @@ defmodule ExAws.S3IntegrationTest do
     <ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
       <Owner>
         <ID>fcde9916b80a61ee31a082a6a58a7017df4e4e7a9124e3748dbe9ecc414b9cb8</ID>
-        <DisplayName>ex_aws_s3</DisplayName>
       </Owner>
       <Buckets>
         <Bucket>
