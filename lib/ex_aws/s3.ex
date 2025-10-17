@@ -443,40 +443,496 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/", resource: "policy", body: policy)
   end
 
-  @doc "Update or create a bucket logging configuration"
-  @spec put_bucket_logging(bucket :: binary, logging_config :: map()) :: no_return
-  def put_bucket_logging(bucket, _logging_config) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  @doc """
+  Update or create a bucket logging configuration
+
+  Enables server access logging for the bucket.
+
+  ## Examples
+  ```
+  # Simple logging to another bucket
+  ExAws.S3.put_bucket_logging("my-bucket", target_bucket: "my-logs-bucket")
+
+  # With custom prefix
+  ExAws.S3.put_bucket_logging("my-bucket",
+    target_bucket: "my-logs-bucket",
+    target_prefix: "access-logs/"
+  )
+
+  # Using a map
+  ExAws.S3.put_bucket_logging("my-bucket", %{
+    target_bucket: "my-logs-bucket",
+    target_prefix: "logs/my-bucket/"
+  })
+  ```
+  """
+  @spec put_bucket_logging(bucket :: binary, logging_config :: Access.t()) ::
+          ExAws.Operation.S3.t()
+  def put_bucket_logging(bucket, logging_config) do
+    config = Enum.into(logging_config, %{})
+    target_bucket = Map.fetch!(config, :target_bucket)
+    target_prefix = Map.get(config, :target_prefix, "")
+
+    body = """
+    <BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <LoggingEnabled>
+        <TargetBucket>#{target_bucket}</TargetBucket>
+        <TargetPrefix>#{target_prefix}</TargetPrefix>
+      </LoggingEnabled>
+    </BucketLoggingStatus>
+    """
+
+    headers = calculate_content_header(body)
+
+    request(:put, bucket, "/", resource: "logging", body: body, headers: headers)
   end
 
-  @doc "Update or create a bucket notification configuration"
-  @spec put_bucket_notification(bucket :: binary, notification_config :: map()) :: no_return
-  def put_bucket_notification(bucket, _notification_config) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  @doc """
+  Update or create a bucket notification configuration
+
+  Configures notifications when certain events happen in the bucket.
+
+  ## Simple Examples
+  ```
+  # SNS notification
+  ExAws.S3.put_bucket_notification("my-bucket",
+    topic_arn: "arn:aws:sns:us-east-1:123456789012:my-topic",
+    events: ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+  )
+
+  # Lambda notification with filters
+  ExAws.S3.put_bucket_notification("my-bucket",
+    lambda_function_arn: "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+    events: ["s3:ObjectCreated:Put"],
+    prefix: "uploads/",
+    suffix: ".jpg"
+  )
+
+  # SQS notification
+  ExAws.S3.put_bucket_notification("my-bucket",
+    queue_arn: "arn:aws:sqs:us-east-1:123456789012:my-queue",
+    events: ["s3:ObjectCreated:*"]
+  )
+  ```
+
+  ## Advanced Examples
+  ```
+  # Multiple notification types
+  ExAws.S3.put_bucket_notification("my-bucket", %{
+    topic_configurations: [%{
+      id: "image-processing",
+      topic_arn: "arn:aws:sns:us-east-1:123456789012:image-topic",
+      events: ["s3:ObjectCreated:*"],
+      filter: %{key: %{filter_rules: [%{name: "prefix", value: "images/"}]}}
+    }],
+    lambda_configurations: [%{
+      id: "thumbnail-generator",
+      lambda_function_arn: "arn:aws:lambda:us-east-1:123456789012:function:thumbs",
+      events: ["s3:ObjectCreated:Put", "s3:ObjectCreated:Post"]
+    }]
+  })
+
+  # MinIO webhook configuration (uses QueueConfiguration with special ARN)
+  ExAws.S3.put_bucket_notification("my-bucket", %{
+    queue_configurations: [%{
+      id: "webhook-notifier",
+      queue_arn: "arn:minio:sqs::webhook-target:webhook",
+      events: ["s3:ObjectCreated:*"],
+      filter: %{key: %{filter_rules: [
+        %{name: "prefix", value: "uploads/"},
+        %{name: "suffix", value: ".jpg"}
+      ]}}
+    }]
+  })
+  ```
+  """
+  @spec put_bucket_notification(bucket :: binary, notification_config :: Access.t()) ::
+          ExAws.Operation.S3.t()
+  def put_bucket_notification(bucket, notification_config) do
+    config = Enum.into(notification_config, %{})
+
+    # Parse configuration and determine format
+    {topic_configs, lambda_configs, queue_configs} =
+      parse_notification_config(config)
+
+    topic_xml = Enum.map(topic_configs, &build_topic_configuration/1)
+    lambda_xml = Enum.map(lambda_configs, &build_lambda_configuration/1)
+    queue_xml = Enum.map(queue_configs, &build_queue_configuration/1)
+
+    body = """
+    <NotificationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    #{topic_xml}#{lambda_xml}#{queue_xml}
+    </NotificationConfiguration>
+    """
+
+    headers = calculate_content_header(body)
+
+    request(:put, bucket, "/", resource: "notification", body: body, headers: headers)
   end
 
-  @doc "Update or create a bucket replication configuration"
-  @spec put_bucket_replication(bucket :: binary, replication_config :: map()) :: no_return
-  def put_bucket_replication(bucket, _replication_config) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  defp build_topic_configuration(config) do
+    id = Map.get(config, :id, "")
+    topic_arn = Map.fetch!(config, :topic_arn)
+    events = Map.get(config, :events, [])
+    filter = Map.get(config, :filter)
+
+    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    filter_xml = if filter, do: build_filter_xml(filter), else: ""
+
+    """
+    <TopicConfiguration>
+    #{id_xml}
+    <Topic>#{topic_arn}</Topic>
+    #{events_xml}
+    #{filter_xml}
+    </TopicConfiguration>
+    """
   end
 
-  @doc "Update or create a bucket tagging configuration"
-  @spec put_bucket_tagging(bucket :: binary, tags :: map()) :: no_return
-  def put_bucket_tagging(bucket, _tags) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  defp build_lambda_configuration(config) do
+    id = Map.get(config, :id, "")
+    lambda_arn = Map.fetch!(config, :lambda_function_arn)
+    events = Map.get(config, :events, [])
+    filter = Map.get(config, :filter)
+
+    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    filter_xml = if filter, do: build_filter_xml(filter), else: ""
+
+    """
+    <LambdaConfiguration>
+    #{id_xml}
+    <LambdaFunctionArn>#{lambda_arn}</LambdaFunctionArn>
+    #{events_xml}
+    #{filter_xml}
+    </LambdaConfiguration>
+    """
   end
 
-  @doc "Update or create a bucket requestPayment configuration"
+  defp build_queue_configuration(config) do
+    id = Map.get(config, :id, "")
+    queue_arn = Map.fetch!(config, :queue_arn)
+    events = Map.get(config, :events, [])
+    filter = Map.get(config, :filter)
+
+    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    filter_xml = if filter, do: build_filter_xml(filter), else: ""
+
+    """
+    <QueueConfiguration>
+    #{id_xml}
+    <Queue>#{queue_arn}</Queue>
+    #{events_xml}
+    #{filter_xml}
+    </QueueConfiguration>
+    """
+  end
+
+  defp build_filter_xml(%{key: key_filter}) do
+    filter_rules = Map.get(key_filter, :filter_rules, [])
+
+    rules_xml =
+      Enum.map(filter_rules, fn rule ->
+        "<FilterRule><Name>#{rule.name}</Name><Value>#{rule.value}</Value></FilterRule>"
+      end)
+
+    """
+    <Filter>
+      <S3Key>
+        #{rules_xml}
+      </S3Key>
+    </Filter>
+    """
+  end
+
+  defp parse_notification_config(config) do
+    cond do
+      # Direct ARN format - single SNS notification
+      Map.has_key?(config, :topic_arn) ->
+        simple_config = build_direct_arn_config(config, :topic_arn)
+        {[simple_config], [], []}
+
+      # Direct ARN format - single Lambda notification
+      Map.has_key?(config, :lambda_function_arn) ->
+        simple_config = build_direct_arn_config(config, :lambda_function_arn)
+        {[], [simple_config], []}
+
+      # Direct ARN format - single SQS notification
+      Map.has_key?(config, :queue_arn) ->
+        simple_config = build_direct_arn_config(config, :queue_arn)
+        {[], [], [simple_config]}
+
+      # Advanced format with full configurations
+      true ->
+        {
+          Map.get(config, :topic_configurations, []),
+          Map.get(config, :lambda_configurations, []),
+          Map.get(config, :queue_configurations, [])
+        }
+    end
+  end
+
+  defp build_direct_arn_config(config, arn_key) do
+    events = Map.get(config, :events, ["s3:ObjectCreated:*"])
+    prefix = Map.get(config, :prefix)
+    suffix = Map.get(config, :suffix)
+    id = Map.get(config, :id, "")
+
+    filter_rules = []
+
+    filter_rules =
+      if prefix, do: [%{name: "prefix", value: prefix} | filter_rules], else: filter_rules
+
+    filter_rules =
+      if suffix, do: [%{name: "suffix", value: suffix} | filter_rules], else: filter_rules
+
+    base_config = %{
+      arn_key => config[arn_key],
+      events: events
+    }
+
+    base_config = if id != "", do: Map.put(base_config, :id, id), else: base_config
+
+    if Enum.any?(filter_rules) do
+      Map.put(base_config, :filter, %{key: %{filter_rules: filter_rules}})
+    else
+      base_config
+    end
+  end
+
+  @doc """
+  Update or create a bucket replication configuration
+
+  Configures cross-region replication for the bucket.
+
+  ## Simple Example
+  ```
+  # Simple replication to another region
+  ExAws.S3.put_bucket_replication("my-bucket",
+    role: "arn:aws:iam::123456789012:role/replication-role",
+    destination_bucket: "arn:aws:s3:::backup-bucket",
+    storage_class: "STANDARD_IA"
+  )
+  ```
+
+  ## Advanced Example
+  ```
+  ExAws.S3.put_bucket_replication("my-bucket", %{
+    role: "arn:aws:iam::123456789012:role/replication-role",
+    rules: [%{
+      id: "ReplicateEverything",
+      status: "Enabled",
+      filter: %{prefix: "documents/"},
+      destination: %{
+        bucket: "arn:aws:s3:::backup-bucket",
+        storage_class: "STANDARD_IA",
+        access_control_translation: %{owner: "Destination"},
+        account: "123456789012"
+      }
+    }]
+  })
+  ```
+  """
+  @spec put_bucket_replication(bucket :: binary, replication_config :: Access.t()) ::
+          ExAws.Operation.S3.t()
+  def put_bucket_replication(bucket, replication_config) do
+    config = Enum.into(replication_config, %{})
+    role = Map.fetch!(config, :role)
+
+    rules =
+      cond do
+        # Simple format
+        Map.has_key?(config, :destination_bucket) ->
+          destination_bucket = Map.fetch!(config, :destination_bucket)
+          storage_class = Map.get(config, :storage_class, "STANDARD")
+          prefix = Map.get(config, :prefix)
+
+          simple_rule = %{
+            id: "ReplicationRule",
+            status: "Enabled",
+            destination: %{
+              bucket: destination_bucket,
+              storage_class: storage_class
+            }
+          }
+
+          if prefix do
+            Map.put(simple_rule, :filter, %{prefix: prefix})
+          else
+            simple_rule
+          end
+          |> List.wrap()
+
+        # Advanced format with full rule configurations
+        true ->
+          Map.get(config, :rules, [])
+      end
+
+    rules_xml = Enum.map(rules, &build_replication_rule/1)
+
+    body = """
+    <ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <Role>#{role}</Role>
+      #{rules_xml}
+    </ReplicationConfiguration>
+    """
+
+    headers = calculate_content_header(body)
+
+    request(:put, bucket, "/", resource: "replication", body: body, headers: headers)
+  end
+
+  defp build_replication_rule(rule) do
+    id = Map.get(rule, :id, "")
+    status = Map.get(rule, :status, "Enabled")
+    filter = Map.get(rule, :filter)
+    destination = Map.fetch!(rule, :destination)
+
+    id_xml = if id != "", do: "<ID>#{id}</ID>", else: ""
+
+    filter_xml =
+      if filter do
+        cond do
+          Map.has_key?(filter, :prefix) ->
+            "<Filter><Prefix>#{filter.prefix}</Prefix></Filter>"
+
+          Map.has_key?(filter, :tag) ->
+            tag = filter.tag
+            "<Filter><Tag><Key>#{tag.key}</Key><Value>#{tag.value}</Value></Tag></Filter>"
+
+          Map.has_key?(filter, :and) ->
+            and_filter = filter.and
+
+            prefix_xml =
+              if Map.has_key?(and_filter, :prefix),
+                do: "<Prefix>#{and_filter.prefix}</Prefix>",
+                else: ""
+
+            tags_xml =
+              and_filter
+              |> Map.get(:tags, [])
+              |> Enum.map(fn tag ->
+                "<Tag><Key>#{tag.key}</Key><Value>#{tag.value}</Value></Tag>"
+              end)
+
+            "<Filter><And>#{prefix_xml}#{tags_xml}</And></Filter>"
+
+          true ->
+            ""
+        end
+      else
+        ""
+      end
+
+    destination_xml = build_replication_destination(destination)
+
+    """
+    <Rule>
+      #{id_xml}
+      <Status>#{status}</Status>
+      #{filter_xml}
+      #{destination_xml}
+    </Rule>
+    """
+  end
+
+  defp build_replication_destination(destination) do
+    bucket = Map.fetch!(destination, :bucket)
+    storage_class = Map.get(destination, :storage_class)
+    account = Map.get(destination, :account)
+    access_control_translation = Map.get(destination, :access_control_translation)
+
+    storage_xml = if storage_class, do: "<StorageClass>#{storage_class}</StorageClass>", else: ""
+    account_xml = if account, do: "<Account>#{account}</Account>", else: ""
+
+    access_control_xml =
+      if access_control_translation do
+        owner = Map.get(access_control_translation, :owner, "Destination")
+        "<AccessControlTranslation><Owner>#{owner}</Owner></AccessControlTranslation>"
+      else
+        ""
+      end
+
+    """
+    <Destination>
+      <Bucket>#{bucket}</Bucket>
+      #{storage_xml}
+      #{account_xml}
+      #{access_control_xml}
+    </Destination>
+    """
+  end
+
+  @doc """
+  Update or create a bucket tagging configuration
+
+  ## Examples
+  ```
+  # Using a map
+  ExAws.S3.put_bucket_tagging("my-bucket", %{"Environment" => "prod", "Team" => "data"})
+
+  # Using a keyword list
+  ExAws.S3.put_bucket_tagging("my-bucket", Environment: "prod", Team: "data")
+  ```
+  """
+  @spec put_bucket_tagging(bucket :: binary, tags :: Access.t()) :: ExAws.Operation.S3.t()
+  def put_bucket_tagging(bucket, tags) do
+    tags_xml =
+      tags
+      |> Enum.map(fn
+        {key, value} ->
+          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+      end)
+
+    body = [
+      ~s(<?xml version="1.0" encoding="UTF-8"?>),
+      "<Tagging>",
+      "<TagSet>",
+      tags_xml,
+      "</TagSet>",
+      "</Tagging>"
+    ]
+
+    body_binary = body |> IO.iodata_to_binary()
+    headers = calculate_content_header(body_binary)
+
+    request(:put, bucket, "/", resource: "tagging", body: body_binary, headers: headers)
+  end
+
+  @doc """
+  Update or create a bucket requestPayment configuration
+
+  Sets who pays for requests and data transfer costs for this bucket.
+
+  ## Examples
+  ```
+  # Make requesters pay for downloads
+  ExAws.S3.put_bucket_request_payment("my-bucket", :requester)
+
+  # Bucket owner pays (default)
+  ExAws.S3.put_bucket_request_payment("my-bucket", :bucket_owner)
+  ```
+  """
   @spec put_bucket_request_payment(bucket :: binary, payer :: :requester | :bucket_owner) ::
-          no_return
-  def put_bucket_request_payment(bucket, _payer) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+          ExAws.Operation.S3.t()
+  def put_bucket_request_payment(bucket, payer) do
+    payer_value =
+      case payer do
+        :requester -> "Requester"
+        :bucket_owner -> "BucketOwner"
+      end
+
+    body = """
+    <RequestPaymentConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <Payer>#{payer_value}</Payer>
+    </RequestPaymentConfiguration>
+    """
+
+    headers = calculate_content_header(body)
+
+    request(:put, bucket, "/", resource: "requestPayment", body: body, headers: headers)
   end
 
   @doc """
@@ -498,11 +954,149 @@ defmodule ExAws.S3 do
     request(:put, bucket, "/", resource: "versioning", body: version_config, headers: headers)
   end
 
-  @doc "Update or create a bucket website configuration"
-  @spec put_bucket_website(bucket :: binary, website_config :: binary) :: no_return
-  def put_bucket_website(bucket, _website_config) do
-    raise "not yet implemented"
-    request(:put, bucket, "/")
+  @doc """
+  Update or create a bucket website configuration
+
+  Enables static website hosting for the bucket.
+
+  ## Examples
+  ```
+  # Simple website with defaults
+  ExAws.S3.put_bucket_website("my-bucket", index_document: "index.html")
+
+  # With error document
+  ExAws.S3.put_bucket_website("my-bucket",
+    index_document: "index.html",
+    error_document: "error.html"
+  )
+
+  # Full configuration with redirects
+  ExAws.S3.put_bucket_website("my-bucket", %{
+    index_document: "index.html",
+    error_document: "error.html",
+    routing_rules: [%{
+      condition: %{key_prefix_equals: "docs/"},
+      redirect: %{replace_key_prefix_with: "documents/"}
+    }]
+  })
+
+  # Redirect all requests to another host
+  ExAws.S3.put_bucket_website("my-bucket",
+    redirect_all_requests_to: %{host_name: "example.com", protocol: "https"}
+  )
+  ```
+  """
+  @spec put_bucket_website(bucket :: binary, website_config :: Access.t()) ::
+          ExAws.Operation.S3.t()
+  def put_bucket_website(bucket, website_config) do
+    config = Enum.into(website_config, %{})
+
+    body_content =
+      cond do
+        Map.has_key?(config, :redirect_all_requests_to) ->
+          redirect = config[:redirect_all_requests_to]
+          protocol = Map.get(redirect, :protocol, "http")
+          host_name = Map.fetch!(redirect, :host_name)
+
+          """
+          <RedirectAllRequestsTo>
+            <HostName>#{host_name}</HostName>
+            <Protocol>#{protocol}</Protocol>
+          </RedirectAllRequestsTo>
+          """
+
+        true ->
+          index_doc = Map.get(config, :index_document, "index.html")
+          error_doc = Map.get(config, :error_document)
+          routing_rules = Map.get(config, :routing_rules, [])
+
+          index_xml = "<IndexDocument><Suffix>#{index_doc}</Suffix></IndexDocument>"
+
+          error_xml =
+            if error_doc do
+              "<ErrorDocument><Key>#{error_doc}</Key></ErrorDocument>"
+            else
+              ""
+            end
+
+          routing_xml =
+            if Enum.any?(routing_rules) do
+              rules = Enum.map(routing_rules, &build_routing_rule/1)
+              "<RoutingRules>#{rules}</RoutingRules>"
+            else
+              ""
+            end
+
+          "#{index_xml}#{error_xml}#{routing_xml}"
+      end
+
+    body = """
+    <WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    #{body_content}
+    </WebsiteConfiguration>
+    """
+
+    headers = calculate_content_header(body)
+
+    request(:put, bucket, "/", resource: "website", body: body, headers: headers)
+  end
+
+  defp build_routing_rule(rule) do
+    condition = Map.get(rule, :condition, %{})
+    redirect = Map.get(rule, :redirect, %{})
+
+    condition_xml =
+      cond do
+        Map.has_key?(condition, :key_prefix_equals) ->
+          "<Condition><KeyPrefixEquals>#{condition[:key_prefix_equals]}</KeyPrefixEquals></Condition>"
+
+        Map.has_key?(condition, :http_error_code_returned_equals) ->
+          "<Condition><HttpErrorCodeReturnedEquals>#{condition[:http_error_code_returned_equals]}</HttpErrorCodeReturnedEquals></Condition>"
+
+        true ->
+          ""
+      end
+
+    redirect_parts = []
+
+    redirect_parts =
+      if Map.has_key?(redirect, :protocol),
+        do: ["<Protocol>#{redirect[:protocol]}</Protocol>" | redirect_parts],
+        else: redirect_parts
+
+    redirect_parts =
+      if Map.has_key?(redirect, :host_name),
+        do: ["<HostName>#{redirect[:host_name]}</HostName>" | redirect_parts],
+        else: redirect_parts
+
+    redirect_parts =
+      if Map.has_key?(redirect, :replace_key_prefix_with),
+        do: [
+          "<ReplaceKeyPrefixWith>#{redirect[:replace_key_prefix_with]}</ReplaceKeyPrefixWith>"
+          | redirect_parts
+        ],
+        else: redirect_parts
+
+    redirect_parts =
+      if Map.has_key?(redirect, :replace_key_with),
+        do: ["<ReplaceKeyWith>#{redirect[:replace_key_with]}</ReplaceKeyWith>" | redirect_parts],
+        else: redirect_parts
+
+    redirect_parts =
+      if Map.has_key?(redirect, :http_redirect_code),
+        do: [
+          "<HttpRedirectCode>#{redirect[:http_redirect_code]}</HttpRedirectCode>" | redirect_parts
+        ],
+        else: redirect_parts
+
+    redirect_xml =
+      if Enum.any?(redirect_parts) do
+        "<Redirect>#{Enum.reverse(redirect_parts)}</Redirect>"
+      else
+        ""
+      end
+
+    "<RoutingRule>#{condition_xml}#{redirect_xml}</RoutingRule>"
   end
 
   ## Objects
