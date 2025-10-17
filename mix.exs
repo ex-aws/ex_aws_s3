@@ -13,6 +13,7 @@ defmodule ExAws.S3.Mixfile do
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       deps: deps(),
       name: @name,
       package: package(),
@@ -55,6 +56,12 @@ defmodule ExAws.S3.Mixfile do
       {:jason, ">= 0.0.0", only: [:dev, :test]},
       {:sweet_xml, ">= 0.0.0", optional: true},
       ex_aws()
+    ]
+  end
+
+  defp aliases do
+    [
+      "test.minio": ["cmd env MIX_TEST_EX_AWS_MINIO=true mix test --only minio"]
     ]
   end
 
