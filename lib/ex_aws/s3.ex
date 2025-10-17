@@ -1548,6 +1548,7 @@ defmodule ExAws.S3 do
           | {:meta, amz_meta_opts}
           | {:if_match, binary}
           | {:if_none_match, binary}
+          | {:tagging, binary}
           | acl_opt
           | storage_class_opt
         ]
