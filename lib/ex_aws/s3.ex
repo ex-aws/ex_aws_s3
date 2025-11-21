@@ -229,12 +229,39 @@ defmodule ExAws.S3 do
     )
   end
 
-  @doc "List metadata about all versions of the objects in a bucket."
+  @type list_object_versions_opts :: [
+          {:delimiter, binary}
+          | {:key_marker, binary}
+          | {:version_id_marker, binary}
+          | {:max_keys, 0..1000}
+          | {:prefix, binary}
+          | {:encoding_type, binary}
+        ]
+
+  @doc """
+  List metadata about all versions of the objects in a bucket.
+
+  Can be streamed.
+
+  ## Examples
+  ```
+  S3.list_object_versions("my-bucket") |> ExAws.request
+
+  S3.list_object_versions("my-bucket") |> ExAws.stream!
+  S3.list_object_versions("my-bucket", prefix: "backup/") |> ExAws.stream!
+  ```
+  """
   @spec list_object_versions(bucket :: binary) :: ExAws.Operation.S3.t()
-  @spec list_object_versions(bucket :: binary, opts :: Keyword.t()) ::
+  @spec list_object_versions(bucket :: binary, opts :: list_object_versions_opts) ::
           ExAws.Operation.S3.t()
+  @params [:delimiter, :key_marker, :version_id_marker, :max_keys, :prefix, :encoding_type]
   def list_object_versions(bucket, opts \\ []) do
-    request(:get, bucket, "/", [resource: "versions", params: opts],
+    params =
+      opts
+      |> format_and_take(@params)
+
+    request(:get, bucket, "/", [resource: "versions", params: params],
+      stream_builder: &ExAws.S3.Lazy.stream_object_versions!(bucket, opts, &1),
       parser: &ExAws.S3.Parsers.parse_object_versions/1
     )
   end
