@@ -333,7 +333,10 @@ defmodule ExAws.S3MinioTest do
 
       # Should have 6 versions total (3 objects × 2 versions each)
       assert length(versions) == 6
-      assert Enum.all?(versions, fn version -> version.key in ["obj1.txt", "obj2.txt", "obj3.txt"] end)
+
+      assert Enum.all?(versions, fn version ->
+               version.key in ["obj1.txt", "obj2.txt", "obj3.txt"]
+             end)
     end
 
     test "list_object_versions streams with pagination when max_keys is set", %{bucket: bucket} do
@@ -401,7 +404,8 @@ defmodule ExAws.S3MinioTest do
       assert length(all_entries) == 10
 
       # Separate versions from delete markers using split_with
-      {versions, delete_markers} = Enum.split_with(all_entries, fn entry -> Map.has_key?(entry, :size) end)
+      {versions, delete_markers} =
+        Enum.split_with(all_entries, fn entry -> Map.has_key?(entry, :size) end)
 
       # Verify we have the expected counts
       assert length(versions) == 8
