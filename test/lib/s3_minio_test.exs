@@ -311,6 +311,106 @@ defmodule ExAws.S3MinioTest do
       assert length(versions) == 2
       assert Enum.all?(versions, fn version -> version.key == @test_object end)
     end
+
+    test "list_object_versions can be streamed", %{bucket: bucket} do
+      # Enable versioning
+      version_config =
+        "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>"
+
+      S3.put_bucket_versioning(bucket, version_config) |> ExAws.request()
+
+      # Upload multiple versions of multiple objects
+      for obj <- ["obj1.txt", "obj2.txt", "obj3.txt"] do
+        S3.put_object(bucket, obj, "#{obj} version 1") |> ExAws.request()
+        S3.put_object(bucket, obj, "#{obj} version 2") |> ExAws.request()
+      end
+
+      # Stream all versions
+      versions =
+        S3.list_object_versions(bucket)
+        |> ExAws.stream!()
+        |> Enum.to_list()
+
+      # Should have 6 versions total (3 objects × 2 versions each)
+      assert length(versions) == 6
+      assert Enum.all?(versions, fn version -> version.key in ["obj1.txt", "obj2.txt", "obj3.txt"] end)
+    end
+
+    test "list_object_versions streams with pagination when max_keys is set", %{bucket: bucket} do
+      # Enable versioning
+      version_config =
+        "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>"
+
+      S3.put_bucket_versioning(bucket, version_config) |> ExAws.request()
+
+      # Upload 11 objects with 3 versions each = 33 total versions
+      # With max_keys=5, this gives: 5+5+5+5+5+5+3 (7 pages, last page has only 3 items)
+      object_names = for i <- 1..11, do: "obj#{i}.txt"
+
+      for obj <- object_names do
+        S3.put_object(bucket, obj, "#{obj} version 1") |> ExAws.request()
+        S3.put_object(bucket, obj, "#{obj} version 2") |> ExAws.request()
+        S3.put_object(bucket, obj, "#{obj} version 3") |> ExAws.request()
+      end
+
+      # Stream all versions with max_keys set to 5 to force multiple requests with uneven last page
+      versions =
+        S3.list_object_versions(bucket, max_keys: 5)
+        |> ExAws.stream!()
+        |> Enum.to_list()
+
+      # Should have 33 versions total (11 objects × 3 versions each)
+      assert length(versions) == 33
+
+      # Verify all objects are present
+      unique_keys = versions |> Enum.map(& &1.key) |> Enum.uniq() |> Enum.sort()
+      assert length(unique_keys) == 11
+      assert unique_keys == Enum.sort(object_names)
+
+      # Verify each object has 3 versions
+      for obj <- object_names do
+        obj_versions = Enum.filter(versions, fn v -> v.key == obj end)
+        assert length(obj_versions) == 3
+      end
+    end
+
+    test "list_object_versions includes delete markers in stream", %{bucket: bucket} do
+      # Enable versioning
+      version_config =
+        "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>"
+
+      S3.put_bucket_versioning(bucket, version_config) |> ExAws.request()
+
+      # Upload multiple objects
+      for obj <- ["obj1.txt", "obj2.txt", "obj3.txt", "obj4.txt"] do
+        S3.put_object(bucket, obj, "#{obj} version 1") |> ExAws.request()
+        S3.put_object(bucket, obj, "#{obj} version 2") |> ExAws.request()
+      end
+
+      # Delete some objects (creates delete markers)
+      S3.delete_object(bucket, "obj2.txt") |> ExAws.request()
+      S3.delete_object(bucket, "obj4.txt") |> ExAws.request()
+
+      # Stream all versions and delete markers
+      all_entries =
+        S3.list_object_versions(bucket)
+        |> ExAws.stream!()
+        |> Enum.to_list()
+
+      # Should have 8 versions (4 objects × 2 versions) + 2 delete markers = 10 total
+      assert length(all_entries) == 10
+
+      # Separate versions from delete markers using split_with
+      {versions, delete_markers} = Enum.split_with(all_entries, fn entry -> Map.has_key?(entry, :size) end)
+
+      # Verify we have the expected counts
+      assert length(versions) == 8
+      assert length(delete_markers) == 2
+
+      # Verify delete markers are for the deleted objects
+      delete_marker_keys = Enum.map(delete_markers, & &1.key) |> Enum.sort()
+      assert delete_marker_keys == ["obj2.txt", "obj4.txt"]
+    end
   end
 
   describe "Multipart upload operations" do
