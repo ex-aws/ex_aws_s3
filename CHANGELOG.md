@@ -1,5 +1,12 @@
 # Changelog
 
+v2.5.9 (2025-12-09)
+- Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
+- Fix `put_object` typespec
+- Remove deprecated Owner DisplayName field. This was removed by AWS on November 21, 2025.
+- Add integration tests for MinIO
+- Add streaming support for `list_object_versions/3`
+
 v2.5.8 (2025-08-12)
 - Rename `get_bucket_object_versions` to `list_object_versions`
 
