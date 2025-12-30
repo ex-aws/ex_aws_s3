@@ -494,7 +494,7 @@ defmodule ExAws.S3Test do
   test "#initiate_multipart_upload returns proper operation structure" do
     # Test that the operation structure is created correctly
     operation = S3.initiate_multipart_upload("my-bucket.custom-domain.com", "test-key.txt")
-    
+
     assert operation.http_method == :post
     assert operation.bucket == "my-bucket.custom-domain.com"
     assert operation.path == "test-key.txt"
@@ -535,7 +535,6 @@ defmodule ExAws.S3Test do
     # Should contain the correct path
     assert uri.path == "/path/to/file.txt"
   end
-
 
   test "#presigned_url passing query_params option" do
     query_params = [
