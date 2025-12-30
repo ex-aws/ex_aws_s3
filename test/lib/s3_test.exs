@@ -505,29 +505,35 @@ defmodule ExAws.S3Test do
     # Test the specific issue where bucket domain appears twice
     config = config()
     opts = [virtual_host: true, bucket_as_host: true]
-    
+
     {:ok, url} = S3.presigned_url(config, :get, "my-custom-domain.com", "path/to/file.txt", opts)
-    
-    # Should not contain the bucket name in the path when bucket_as_host is true
-    refute String.contains?(url, "/my-custom-domain.com/path/to/file.txt")
+
+    # Parse the URL to check the path component specifically
+    uri = URI.parse(url)
+
+    # The path should NOT contain the bucket name (which would indicate duplication)
+    refute String.contains?(uri.path, "my-custom-domain.com")
     # Should contain the correct path
-    assert String.contains?(url, "/path/to/file.txt")
+    assert uri.path == "/path/to/file.txt"
     # Should use the bucket as the hostname
-    assert String.starts_with?(url, "https://my-custom-domain.com/")
+    assert uri.host == "my-custom-domain.com"
   end
 
   test "#presigned_url reads bucket_as_host and virtual_host from config" do
     # Test that config values are used when options are not provided
     config = config() |> Map.put(:virtual_host, true) |> Map.put(:bucket_as_host, true)
-    
+
     {:ok, url} = S3.presigned_url(config, :get, "my-custom-domain.com", "path/to/file.txt")
-    
+
+    # Parse the URL to check components specifically
+    uri = URI.parse(url)
+
     # Should use bucket as hostname even without explicit opts
-    assert String.starts_with?(url, "https://my-custom-domain.com/")
-    # Should not duplicate bucket name in path
-    refute String.contains?(url, "/my-custom-domain.com/path")
+    assert uri.host == "my-custom-domain.com"
+    # The path should NOT contain the bucket name (which would indicate duplication)
+    refute String.contains?(uri.path, "my-custom-domain.com")
     # Should contain the correct path
-    assert String.contains?(url, "/path/to/file.txt")
+    assert uri.path == "/path/to/file.txt"
   end
 
 
