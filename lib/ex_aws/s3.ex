@@ -1971,6 +1971,10 @@ defmodule ExAws.S3 do
   Signed headers can be added to the url by setting option param `:headers` to
   a list of `{"key", "value"}` pairs.
 
+  If you want to set the `Content-Disposition` header, you should set it as a query parameter with
+  the key `response-content-disposition`. Same goes for  `Content-Type`, `Content-Language`,
+  `Expires`, `Cache-Control`, and `Content-Enconding`.
+
   ## Example
   ```
   :s3
