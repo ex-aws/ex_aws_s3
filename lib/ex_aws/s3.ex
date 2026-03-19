@@ -1224,9 +1224,12 @@ defmodule ExAws.S3 do
 
     body_binary = body |> IO.iodata_to_binary()
 
-    request(:post, bucket, "/?delete",
-      body: body_binary,
-      headers: calculate_content_header(body_binary)
+    request(
+      :post,
+      bucket,
+      "/?delete",
+      [body: body_binary, headers: calculate_content_header(body_binary)],
+      parser: &ExAws.S3.Parsers.parse_delete_multiple_objects/1
     )
   end
 

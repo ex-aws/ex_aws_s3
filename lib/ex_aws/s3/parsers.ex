@@ -187,6 +187,28 @@ if Code.ensure_loaded?(SweetXml) do
     end
 
     def parse_object_versions(val), do: val
+
+    def parse_delete_multiple_objects({:ok, resp = %{body: xml}}) do
+      parsed_body =
+        SweetXml.xpath(xml, ~x"//DeleteResult",
+          deleted: [
+            ~x"./Deleted"l,
+            key: ~x"./Key/text()"s,
+            version_id: ~x"./VersionId/text()"s
+          ],
+          errors: [
+            ~x"./Error"l,
+            key: ~x"./Key/text()"s,
+            version_id: ~x"./VersionId/text()"s,
+            code: ~x"./Code/text()"s,
+            message: ~x"./Message/text()"s
+          ]
+        )
+
+      {:ok, %{resp | body: parsed_body}}
+    end
+
+    def parse_delete_multiple_objects(val), do: val
   end
 else
   defmodule ExAws.S3.Parsers do
@@ -201,5 +223,6 @@ else
     def parse_list_parts(_val), do: missing_xml_parser()
     def parse_object_tagging(_val), do: missing_xml_parser()
     def parse_object_versions(_val), do: missing_xml_parser()
+    def parse_delete_multiple_objects(_val), do: missing_xml_parser()
   end
 end
