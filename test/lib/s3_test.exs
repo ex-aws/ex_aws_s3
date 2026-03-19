@@ -339,7 +339,8 @@ defmodule ExAws.S3Test do
       bucket: "bucket",
       path: "/?delete",
       headers: %{"content-md5" => "G9Pq8w8AQUesREJndxKbKw=="},
-      http_method: :post
+      http_method: :post,
+      parser: &ExAws.S3.Parsers.parse_delete_multiple_objects/1
     }
 
     assert expected ==
@@ -359,7 +360,8 @@ defmodule ExAws.S3Test do
       bucket: "bucket",
       path: "/?delete",
       headers: %{"x-amz-checksum-sha1" => "1uLbLBmwtufR1/csrQPCAONFeKU="},
-      http_method: :post
+      http_method: :post,
+      parser: &ExAws.S3.Parsers.parse_delete_multiple_objects/1
     }
 
     assert expected ==
@@ -381,7 +383,8 @@ defmodule ExAws.S3Test do
       bucket: "bucket",
       path: "/?delete",
       headers: %{"x-amz-checksum-sha256" => "Hsce+MZp64Uy8CwyResJ3y13YGw6jDAAdVGFmFPKPSs="},
-      http_method: :post
+      http_method: :post,
+      parser: &ExAws.S3.Parsers.parse_delete_multiple_objects/1
     }
 
     assert expected ==

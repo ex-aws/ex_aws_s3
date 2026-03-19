@@ -354,4 +354,132 @@ defmodule ExAws.S3.ParserTest do
       assert result == error
     end
   end
+
+  describe "#parse_delete_multiple_objects" do
+    test "returns deleted entries and no errors when all objects succeed" do
+      response = ~S"""
+      <?xml version="1.0" encoding="UTF-8"?>
+      <DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Deleted><Key>my-image.jpg</Key></Deleted>
+        <Deleted><Key>my-second-image.jpg</Key></Deleted>
+      </DeleteResult>
+      """
+
+      {:ok, %{body: body}} =
+        ExAws.S3.Parsers.parse_delete_multiple_objects({:ok, %{body: response}})
+
+      assert body.deleted == [
+               %{key: "my-image.jpg", version_id: ""},
+               %{key: "my-second-image.jpg", version_id: ""}
+             ]
+
+      assert body.errors == []
+    end
+
+    test "returns both deleted and error entries on partial failure" do
+      response = ~S"""
+      <?xml version="1.0" encoding="UTF-8"?>
+      <DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Deleted><Key>my-image.jpg</Key></Deleted>
+        <Error>
+          <Key>my-second-image.jpg</Key>
+          <Code>AccessDenied</Code>
+          <Message>Access Denied</Message>
+        </Error>
+      </DeleteResult>
+      """
+
+      {:ok, %{body: body}} =
+        ExAws.S3.Parsers.parse_delete_multiple_objects({:ok, %{body: response}})
+
+      assert body.deleted == [%{key: "my-image.jpg", version_id: ""}]
+
+      assert body.errors == [
+               %{
+                 key: "my-second-image.jpg",
+                 version_id: "",
+                 code: "AccessDenied",
+                 message: "Access Denied"
+               }
+             ]
+    end
+
+    test "returns errors and no deleted entries when all objects fail" do
+      response = ~S"""
+      <?xml version="1.0" encoding="UTF-8"?>
+      <DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Error>
+          <Key>my-image.jpg</Key>
+          <Code>NoSuchKey</Code>
+          <Message>The specified key does not exist.</Message>
+        </Error>
+      </DeleteResult>
+      """
+
+      {:ok, %{body: body}} =
+        ExAws.S3.Parsers.parse_delete_multiple_objects({:ok, %{body: response}})
+
+      assert body.deleted == []
+
+      assert body.errors == [
+               %{
+                 key: "my-image.jpg",
+                 version_id: "",
+                 code: "NoSuchKey",
+                 message: "The specified key does not exist."
+               }
+             ]
+    end
+
+    test "returns empty lists for an empty DeleteResult (quiet mode)" do
+      response = ~S"""
+      <?xml version="1.0" encoding="UTF-8"?>
+      <DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"/>
+      """
+
+      {:ok, %{body: body}} =
+        ExAws.S3.Parsers.parse_delete_multiple_objects({:ok, %{body: response}})
+
+      assert body.deleted == []
+      assert body.errors == []
+    end
+
+    test "includes VersionId in entries for versioned buckets" do
+      response = ~S"""
+      <?xml version="1.0" encoding="UTF-8"?>
+      <DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Deleted>
+          <Key>my-image.jpg</Key>
+          <VersionId>3/L4kqtJl40Nr8X8gdRQBpUMLUo</VersionId>
+        </Deleted>
+        <Error>
+          <Key>my-second-image.jpg</Key>
+          <VersionId>03jpff543dhffds434rfdsFDN943fdsFkdmqnh892</VersionId>
+          <Code>AccessDenied</Code>
+          <Message>Access Denied</Message>
+        </Error>
+      </DeleteResult>
+      """
+
+      {:ok, %{body: body}} =
+        ExAws.S3.Parsers.parse_delete_multiple_objects({:ok, %{body: response}})
+
+      assert body.deleted == [%{key: "my-image.jpg", version_id: "3/L4kqtJl40Nr8X8gdRQBpUMLUo"}]
+
+      assert body.errors == [
+               %{
+                 key: "my-second-image.jpg",
+                 version_id: "03jpff543dhffds434rfdsFDN943fdsFkdmqnh892",
+                 code: "AccessDenied",
+                 message: "Access Denied"
+               }
+             ]
+    end
+
+    test "handles errors by passing them through" do
+      error = {:error, "error"}
+      result = ExAws.S3.Parsers.parse_delete_multiple_objects(error)
+      assert result == error
+    end
+  end
 end
