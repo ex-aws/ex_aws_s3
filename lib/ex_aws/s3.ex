@@ -1320,7 +1320,8 @@ defmodule ExAws.S3 do
   @type download_file_opts :: [
           max_concurrency: pos_integer,
           chunk_size: pos_integer,
-          timeout: pos_integer
+          timeout: pos_integer,
+          encryption: customer_encryption_opts
         ]
 
   @doc ~S"""
@@ -1330,6 +1331,21 @@ defmodule ExAws.S3 do
   you to maximize throughput.
 
   Defaults to a concurrency of 8, chunk size of 1MB, and a timeout of 1 minute.
+
+  ### Using SSE-C encryption
+
+  To download an object using SSE-C encryption, pass the same `:encryption`
+  option accepted by `get_object/3` and `head_object/3`:
+
+      encryption = [
+        customer_algorithm: "AES256",
+        customer_key: key,
+        customer_key_md5: key_md5
+      ]
+
+      ExAws.S3.download_file("example-bucket", "path/to/file.txt", "file.txt",
+        encryption: encryption
+      )
 
   ### Streaming to memory
 
