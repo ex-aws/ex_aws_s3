@@ -57,6 +57,24 @@ Multipart uploads
 ```
 See `ExAws.S3.upload/4` for options
 
+Multipart uploads with SSE-C (server-side encryption with a customer-provided key).
+The same `:encryption` opt is applied to the initiate, each part upload, and the
+complete request.
+```elixir
+key = :crypto.strong_rand_bytes(32)
+
+encryption = [
+  customer_algorithm: "AES256",
+  customer_key: Base.encode64(key),
+  customer_key_md5: Base.encode64(:crypto.hash(:md5, key))
+]
+
+"path/to/big/file"
+|> S3.Upload.stream_file
+|> S3.upload("my-bucket", "path/on/s3", encryption: encryption)
+|> ExAws.request #=> {:ok, :done}
+```
+
 Download large file to disk
 ```elixir
 S3.download_file("my-bucket", "path/on/s3", "path/to/dest/file")

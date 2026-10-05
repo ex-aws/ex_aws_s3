@@ -255,6 +255,94 @@ defmodule ExAws.S3Test do
              })
   end
 
+  test "#complete_multipart_upload without opts has no headers" do
+    expected = %Operation.S3{
+      body:
+        "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>foo</ETag></Part></CompleteMultipartUpload>",
+      bucket: "bucket",
+      headers: %{},
+      params: %{"uploadId" => "upload-id"},
+      path: "object",
+      http_method: :post,
+      parser: &ExAws.S3.Parsers.parse_complete_multipart_upload/1
+    }
+
+    assert expected ==
+             S3.complete_multipart_upload("bucket", "object", "upload-id", %{1 => "foo"})
+  end
+
+  test "#complete_multipart_upload with SSE-C" do
+    expected = %Operation.S3{
+      body:
+        "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>foo</ETag></Part></CompleteMultipartUpload>",
+      bucket: "bucket",
+      headers: %{
+        "x-amz-server-side-encryption-customer-algorithm" => "AES256",
+        "x-amz-server-side-encryption-customer-key" => "base64key",
+        "x-amz-server-side-encryption-customer-key-md5" => "base64md5"
+      },
+      params: %{"uploadId" => "upload-id"},
+      path: "object",
+      http_method: :post,
+      parser: &ExAws.S3.Parsers.parse_complete_multipart_upload/1
+    }
+
+    assert expected ==
+             S3.complete_multipart_upload(
+               "bucket",
+               "object",
+               "upload-id",
+               %{1 => "foo"},
+               encryption: [
+                 customer_algorithm: "AES256",
+                 customer_key: "base64key",
+                 customer_key_md5: "base64md5"
+               ]
+             )
+  end
+
+  test "#upload_part with SSE-C" do
+    expected = %Operation.S3{
+      body: "data",
+      bucket: "bucket",
+      headers: %{
+        "x-amz-server-side-encryption-customer-algorithm" => "AES256",
+        "x-amz-server-side-encryption-customer-key" => "base64key",
+        "x-amz-server-side-encryption-customer-key-md5" => "base64md5"
+      },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "object",
+      http_method: :put
+    }
+
+    assert expected ==
+             S3.upload_part(
+               "bucket",
+               "object",
+               "upload-id",
+               1,
+               "data",
+               encryption: [
+                 customer_algorithm: "AES256",
+                 customer_key: "base64key",
+                 customer_key_md5: "base64md5"
+               ]
+             )
+  end
+
+  test "#upload_part without encryption has no headers" do
+    expected = %Operation.S3{
+      body: "data",
+      bucket: "bucket",
+      headers: %{},
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "object",
+      http_method: :put
+    }
+
+    assert expected == S3.upload_part("bucket", "object", "upload-id", 1, "data")
+  end
+
   test "#upload_part_copy" do
     expected = %Operation.S3{
       bucket: "dest-bucket",

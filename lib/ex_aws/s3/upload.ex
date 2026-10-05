@@ -47,7 +47,8 @@ defmodule ExAws.S3.Upload do
       op.bucket,
       op.path,
       op.upload_id,
-      Enum.sort_by(parts, &elem(&1, 0))
+      Enum.sort_by(parts, &elem(&1, 0)),
+      op.opts
     )
     |> ExAws.request(config)
   end
