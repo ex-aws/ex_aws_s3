@@ -1320,7 +1320,8 @@ defmodule ExAws.S3 do
   @type download_file_opts :: [
           max_concurrency: pos_integer,
           chunk_size: pos_integer,
-          timeout: pos_integer
+          timeout: pos_integer,
+          encryption: encryption_opts
         ]
 
   @doc ~S"""
@@ -1440,8 +1441,9 @@ defmodule ExAws.S3 do
       the initial auth. Fixes an edge case uploading large files when using a strategy from `ex_aws_sts` that provides short lived tokens,
       where uploads could fail if the token expires before the upload is completed. Defaults to `false`.
 
-  All other options (ex. `:content_type`) are passed through to
-  `ExAws.S3.initiate_multipart_upload/3`.
+  All other options (ex. `:content_type`, `:encryption`) are passed through to
+  `ExAws.S3.initiate_multipart_upload/3`, `ExAws.S3.upload_part/6`, and
+  `ExAws.S3.complete_multipart_upload/5`.
 
   """
   @spec upload(
@@ -1806,11 +1808,12 @@ defmodule ExAws.S3 do
           upload_id :: binary,
           part_number :: pos_integer,
           body :: binary,
-          opts :: [encryption_opts | {:expect, binary}]
+          opts :: [encryption: encryption_opts, expect: binary]
         ) :: ExAws.Operation.S3.t()
-  def upload_part(bucket, object, upload_id, part_number, body, _opts \\ []) do
+  def upload_part(bucket, object, upload_id, part_number, body, opts \\ []) do
     params = %{"uploadId" => upload_id, "partNumber" => part_number}
-    request(:put, bucket, object, params: params, body: body)
+    headers = opts |> Map.new() |> Map.get(:encryption, %{}) |> build_encryption_headers
+    request(:put, bucket, object, params: params, body: body, headers: headers)
   end
 
   @type upload_part_copy_opts :: [
@@ -1893,6 +1896,8 @@ defmodule ExAws.S3 do
     })
   end
 
+  @type complete_multipart_upload_opts :: [encryption: encryption_opts]
+
   @doc "Complete a multipart upload"
   @spec complete_multipart_upload(
           bucket :: binary,
@@ -1900,7 +1905,14 @@ defmodule ExAws.S3 do
           upload_id :: binary,
           parts :: [{binary | pos_integer, binary}, ...]
         ) :: ExAws.Operation.S3.t()
-  def complete_multipart_upload(bucket, object, upload_id, parts) do
+  @spec complete_multipart_upload(
+          bucket :: binary,
+          object :: binary,
+          upload_id :: binary,
+          parts :: [{binary | pos_integer, binary}, ...],
+          opts :: complete_multipart_upload_opts
+        ) :: ExAws.Operation.S3.t()
+  def complete_multipart_upload(bucket, object, upload_id, parts, opts \\ []) do
     parts_xml =
       parts
       |> Enum.map(fn {part_number, etag} ->
@@ -1920,9 +1932,15 @@ defmodule ExAws.S3 do
       ["<CompleteMultipartUpload>", parts_xml, "</CompleteMultipartUpload>"]
       |> IO.iodata_to_binary()
 
-    request(:post, bucket, object, [params: %{"uploadId" => upload_id}, body: body], %{
-      parser: &Parsers.parse_complete_multipart_upload/1
-    })
+    headers = opts |> Map.new() |> Map.get(:encryption, %{}) |> build_encryption_headers
+
+    request(
+      :post,
+      bucket,
+      object,
+      [params: %{"uploadId" => upload_id}, body: body, headers: headers],
+      %{parser: &Parsers.parse_complete_multipart_upload/1}
+    )
   end
 
   @doc "Abort a multipart upload"

@@ -61,7 +61,8 @@ defmodule ExAws.S3.Mixfile do
 
   defp aliases do
     [
-      "test.minio": ["cmd env MIX_TEST_EX_AWS_MINIO=true mix test --only minio"]
+      "test.minio": ["cmd env MIX_TEST_EX_AWS_MINIO=true mix test --only minio"],
+      "test.hetzner": ["cmd env MIX_TEST_EX_AWS_HETZNER=true mix test --only hetzner"]
     ]
   end
 
