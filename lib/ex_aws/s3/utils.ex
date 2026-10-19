@@ -144,14 +144,19 @@ defmodule ExAws.S3.Utils do
       |> Enum.flat_map(fn {key, property} ->
         rule
         |> Map.get(key, [])
-        |> Enum.map(&"<#{property}>#{&1}</#{property}>")
+        |> Enum.map(&"<#{property}>#{escape_xml_string(&1)}</#{property}>")
       end)
 
     properties =
       case Map.fetch(rule, :max_age_seconds) do
-        :error -> properties
-        {:ok, nil} -> properties
-        {:ok, value} -> ["<MaxAgeSeconds>#{value}</MaxAgeSeconds>" | properties]
+        :error ->
+          properties
+
+        {:ok, nil} ->
+          properties
+
+        {:ok, value} ->
+          ["<MaxAgeSeconds>#{escape_xml_string(value)}</MaxAgeSeconds>" | properties]
       end
 
     ["<CORSRule>", properties, "</CORSRule>"]
@@ -160,7 +165,7 @@ defmodule ExAws.S3.Utils do
 
   def build_lifecycle_rule(rule) do
     # ID
-    properties = ["<ID>", rule.id, "</ID>"]
+    properties = ["<ID>", escape_xml_string(rule.id), "</ID>"]
 
     # Status
     status_text = if rule.enabled, do: "Enabled", else: "Disabled"
@@ -170,7 +175,7 @@ defmodule ExAws.S3.Utils do
     filter_prefix =
       case Map.get(rule.filter, :prefix, nil) do
         prefix when is_binary(prefix) and prefix != "" ->
-          [["<Prefix>", prefix, "</Prefix>"]]
+          [["<Prefix>", escape_xml_string(prefix), "</Prefix>"]]
 
         _ ->
           []
@@ -178,7 +183,12 @@ defmodule ExAws.S3.Utils do
 
     filter_tags =
       Enum.map(Map.get(rule.filter, :tags, []), fn {key, value} ->
-        ["<Tag>", ["<Key>", key, "</Key>", "<Value>", value, "</Value>"], "</Tag>"]
+        [
+          "<Tag>",
+          ["<Key>", escape_xml_string(key), "</Key>"],
+          ["<Value>", escape_xml_string(value), "</Value>"],
+          "</Tag>"
+        ]
       end)
 
     filters =
@@ -195,7 +205,7 @@ defmodule ExAws.S3.Utils do
       transition: %{
         tag: "Transition",
         action_tags: fn %{storage: storage} ->
-          [["<StorageClass>", storage, "</StorageClass>"]]
+          [["<StorageClass>", escape_xml_string(storage), "</StorageClass>"]]
         end
       },
       expiration: %{
@@ -212,14 +222,20 @@ defmodule ExAws.S3.Utils do
       noncurrent_version_transition: %{
         tag: "NoncurrentVersionTransition",
         action_tags: fn %{storage: storage} ->
-          [["<StorageClass>", storage, "</StorageClass>"]]
+          [["<StorageClass>", escape_xml_string(storage), "</StorageClass>"]]
         end
       },
       noncurrent_version_expiration: %{
         tag: "NoncurrentVersionExpiration",
         action_tags: fn
           %{newer_noncurrent_versions: versions} ->
-            [["<NewerNoncurrentVersions>", "#{versions}", "</NewerNoncurrentVersions>"]]
+            [
+              [
+                "<NewerNoncurrentVersions>",
+                escape_xml_string(versions),
+                "</NewerNoncurrentVersions>"
+              ]
+            ]
 
           _ ->
             []
@@ -267,6 +283,30 @@ defmodule ExAws.S3.Utils do
        when action in [:noncurrent_version_transition, :noncurrent_version_expiration] and
               is_integer(days) and days >= 0 do
     ["<NoncurrentDays>", Integer.to_string(days), "</NoncurrentDays>"]
+  end
+
+  @doc """
+  Escapes a value for use as character data inside an XML element.
+
+  Every caller-supplied value that is placed between XML tags in a request body
+  must pass through this function. Without it, a value containing `<`, `&` or
+  similar is read by S3 as markup rather than text, which both breaks the request
+  and allows injection of additional elements.
+
+  See https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints
+  """
+  def escape_xml_string(value) do
+    value
+    |> to_string()
+    |> String.replace(["'", "\"", "&", "<", ">", "\r", "\n"], fn
+      "'" -> "&apos;"
+      "\"" -> "&quot;"
+      "&" -> "&amp;"
+      "<" -> "&lt;"
+      ">" -> "&gt;"
+      "\r" -> "&#13;"
+      "\n" -> "&#10;"
+    end)
   end
 
   def normalize_param(:version_id), do: "versionId"
