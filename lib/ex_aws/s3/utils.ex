@@ -123,13 +123,44 @@ defmodule ExAws.S3.Utils do
     grants =
       grantees
       |> Enum.map(fn
-        {:email, email} -> "emailAddress=\"#{email}\""
-        {key, value} -> "#{key}=\"#{value}\""
+        {:email, email} -> format_grantee("emailAddress", email)
+        {type, identifier} -> format_grantee(type, identifier)
       end)
       |> Enum.join(", ")
 
     {permission, grants}
   end
+
+  # A grant header is a comma-separated list of `type="identifier"` tokens and the
+  # grammar has no escaping mechanism. If an identifier were interpolated verbatim, a
+  # value such as `x", uri="http://acs.amazonaws.com/groups/global/AllUsers` would close
+  # the quoted token and smuggle in a second grantee (GHSA-6fg2-v8g4-vfg2). Every legitimate
+  # grantee identifier (canonical user id, email address or group URI) consists solely of
+  # printable ASCII, so anything outside that range, or the structural `"` and `,`
+  # characters, is rejected rather than escaped.
+  defp format_grantee(type, identifier) do
+    type = to_string(type)
+    identifier = to_string(identifier)
+
+    if safe_grantee_component?(type) and safe_grantee_component?(identifier) do
+      ~s(#{type}="#{identifier}")
+    else
+      raise ArgumentError,
+            "invalid S3 grantee #{type}=#{inspect(identifier)}: grantee types and identifiers " <>
+              "may only contain printable ASCII characters other than `\"` and `,`"
+    end
+  end
+
+  # 0x20 (space) through 0x7E (tilde) is exactly the printable ASCII range: everything
+  # below 0x20 is a control character (including CR/LF, which would allow HTTP header
+  # injection), 0x7F is DEL, and anything above is non-ASCII. Within that range only the
+  # double quote and comma carry structural meaning in the grant header grammar.
+  defp safe_grantee_component?(<<c, rest::binary>>)
+       when c in 0x20..0x7E and c not in [?", ?,],
+       do: safe_grantee_component?(rest)
+
+  defp safe_grantee_component?(<<>>), do: true
+  defp safe_grantee_component?(_), do: false
 
   def build_cors_rule(rule) do
     mapping = [

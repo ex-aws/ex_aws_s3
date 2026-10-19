@@ -1062,5 +1062,32 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#put_object_acl with explicit grants" do
+    res = S3.put_object_acl("bucket", "object", grant_read: [email: "foo@bar.com", id: "fake_id"])
+
+    assert res.headers == %{"x-amz-grant-read" => ~s(emailAddress="foo@bar.com", id="fake_id")}
+    assert res.resource == "acl"
+    assert res.http_method == :put
+  end
+
+  test "grantee injection is rejected by every operation that accepts grants" do
+    injected = [
+      email: ~s(victim@example.com", uri="http://acs.amazonaws.com/groups/global/AllUsers)
+    ]
+
+    operations = [
+      fn -> S3.put_object_acl("bucket", "object", grant_read: injected) end,
+      fn -> S3.put_bucket_acl("bucket", grant_full_control: injected) end,
+      fn -> S3.put_bucket("bucket", "us-east-1", grant_write: injected) end,
+      fn -> S3.put_object("bucket", "object", "body", grant_read_acp: injected) end,
+      fn -> S3.put_object_copy("dest", "object", "src", "object", grant_write_acp: injected) end,
+      fn -> S3.initiate_multipart_upload("bucket", "object", grant_full_control: injected) end
+    ]
+
+    for operation <- operations do
+      assert_raise ArgumentError, ~r/invalid S3 grantee/, operation
+    end
+  end
+
   defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
 end

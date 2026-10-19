@@ -1,5 +1,8 @@
 # Changelog
 
+Unreleased
+- Security: reject grantee identifiers containing `"`, `,`, control or non-ASCII characters in the `grant_read`, `grant_write`, `grant_read_acp`, `grant_write_acp` and `grant_full_control` options. An untrusted grantee value could previously inject additional grantees (including the `AllUsers` group) into the `x-amz-grant-*` headers (GHSA-6fg2-v8g4-vfg2).
+
 v2.5.9 (2025-12-09)
 - Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
 - Fix `put_object` typespec
