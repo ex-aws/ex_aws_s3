@@ -590,6 +590,19 @@ defmodule ExAws.S3Test do
       assert texts(body, "//Object/VersionId") == [@raw]
     end
 
+    test "#delete_multiple_objects does not let a version id inject objects (GHSA-mwxg-gfj8-x32v)" do
+      payload =
+        "v1</VersionId></Object>" <>
+          "<Object><Key>important-file</Key></Object>" <>
+          "<Object><Key>x</Key><VersionId>v2"
+
+      %Operation.S3{body: body} =
+        S3.delete_multiple_objects("bucket", [{"my-own-file", payload}])
+
+      assert texts(body, "//Delete/Object/Key") == ["my-own-file"]
+      assert texts(body, "//Delete/Object/VersionId") == [payload]
+    end
+
     test "#complete_multipart_upload escapes etags" do
       %Operation.S3{body: body} =
         S3.complete_multipart_upload("bucket", "object", "upload-id", [{1, @raw}])
