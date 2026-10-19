@@ -1,5 +1,8 @@
 # Changelog
 
+Unreleased
+- Security: reject header names and values containing control characters (such as CR/LF) in every request builder. Previously `:meta` keys/values and other header options were interpolated into `x-amz-meta-*` and other request headers verbatim, allowing HTTP header injection when they were derived from untrusted input (GHSA-5887-vcfr-5ff8).
+
 v2.5.9 (2025-12-09)
 - Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
 - Fix `put_object` typespec

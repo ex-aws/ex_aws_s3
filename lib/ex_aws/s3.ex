@@ -79,6 +79,12 @@ defmodule ExAws.S3 do
           fields: %{binary => binary}
         }
 
+  @typedoc """
+  User-defined object metadata, sent as `x-amz-meta-*` request headers.
+
+  Keys must be valid HTTP header tokens and values must not contain control
+  characters such as CR or LF. `ArgumentError` is raised otherwise.
+  """
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
 
   @typedoc """
@@ -2145,7 +2151,7 @@ defmodule ExAws.S3 do
       bucket: bucket,
       path: path,
       body: data[:body] || "",
-      headers: data[:headers] || %{},
+      headers: validate_headers!(data[:headers] || %{}),
       resource: data[:resource] || "",
       params: data[:params] || %{}
     }

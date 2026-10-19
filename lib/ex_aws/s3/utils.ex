@@ -66,6 +66,58 @@ defmodule ExAws.S3.Utils do
   end
 
   @doc """
+  Validates that every header name and value is safe to put on the wire.
+
+  Raises `ArgumentError` if a header name is not an RFC 9110 token, or if a
+  header value contains control characters such as CR or LF. Without this check,
+  headers built from untrusted input (for example `x-amz-meta-*`) could be used
+  for HTTP header injection / request splitting.
+  """
+  def validate_headers!(headers) do
+    Enum.each(headers, fn {name, value} ->
+      name = header_to_binary(name)
+
+      unless valid_header_name?(name) do
+        raise ArgumentError,
+              "invalid HTTP header name #{inspect(name)}: header names may only contain " <>
+                "RFC 9110 token characters"
+      end
+
+      unless valid_header_value?(header_to_binary(value)) do
+        raise ArgumentError,
+              "invalid value for HTTP header #{inspect(name)}: #{inspect(value)} contains " <>
+                "control characters (such as CR or LF), which are not allowed"
+      end
+    end)
+
+    headers
+  end
+
+  @tchar_punctuation String.to_charlist("!#$%&'*+-.^_`|~")
+
+  defp valid_header_name?(<<>>), do: false
+  defp valid_header_name?(name), do: all_tchars?(name)
+
+  defp all_tchars?(<<c, rest::binary>>)
+       when c in ?a..?z or c in ?A..?Z or c in ?0..?9 or c in @tchar_punctuation,
+       do: all_tchars?(rest)
+
+  defp all_tchars?(<<>>), do: true
+  defp all_tchars?(_), do: false
+
+  # Field values may contain visible ASCII, space, horizontal tab and obs-text
+  # (bytes >= 0x80). Everything else (CR, LF, NUL and other control characters)
+  # is rejected.
+  defp valid_header_value?(<<c, rest::binary>>) when c == ?\t or (c >= 0x20 and c != 0x7F),
+    do: valid_header_value?(rest)
+
+  defp valid_header_value?(<<>>), do: true
+  defp valid_header_value?(_), do: false
+
+  defp header_to_binary(value) when is_binary(value), do: value
+  defp header_to_binary(value), do: to_string(value)
+
+  @doc """
   format_and_take %{param_one: "v1", param_two: "v2"}, [:param_one]
   #=> %{"param-one" => "v1"}
   """
