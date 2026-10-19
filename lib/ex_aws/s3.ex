@@ -1746,6 +1746,21 @@ defmodule ExAws.S3 do
       |> Map.delete(:encryption)
       |> put_object_headers
 
+    headers =
+      regular_headers
+      |> Map.merge(amz_headers)
+      |> Map.merge(source_encryption)
+      |> Map.merge(destination_encryption)
+      |> Map.put("x-amz-copy-source", copy_source_header(src_bucket, src_object))
+
+    request(:put, dest_bucket, dest_object, headers: headers)
+  end
+
+  # Builds the value of the `x-amz-copy-source` header. The bucket and each
+  # path segment of the object key are percent-encoded so that reserved
+  # characters (including CR/LF) cannot alter the meaning of the header or
+  # inject additional headers into the request.
+  defp copy_source_header(src_bucket, src_object) do
     encoded_src_object =
       src_object
       |> String.split("/")
@@ -1753,17 +1768,7 @@ defmodule ExAws.S3 do
       |> Enum.map(fn str -> URI.encode(str, &URI.char_unreserved?/1) end)
       |> Enum.join("/")
 
-    headers =
-      regular_headers
-      |> Map.merge(amz_headers)
-      |> Map.merge(source_encryption)
-      |> Map.merge(destination_encryption)
-      |> Map.put(
-        "x-amz-copy-source",
-        "/#{URI.encode(src_bucket, &URI.char_unreserved?/1)}/#{encoded_src_object}"
-      )
-
-    request(:put, dest_bucket, dest_object, headers: headers)
+    "/#{URI.encode(src_bucket, &URI.char_unreserved?/1)}/#{encoded_src_object}"
   end
 
   @type initiate_multipart_upload_opt ::
@@ -1884,7 +1889,7 @@ defmodule ExAws.S3 do
     headers =
       headers
       |> Map.put("x-amz-copy-source-range", "bytes=#{first}-#{last}")
-      |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
+      |> Map.put("x-amz-copy-source", copy_source_header(src_bucket, src_object))
 
     params = %{"uploadId" => upload_id, "partNumber" => part_number}
 

@@ -1,5 +1,8 @@
 # Changelog
 
+Unreleased
+- Security: percent-encode the bucket and object key in the `x-amz-copy-source` header built by `upload_part_copy/8`, matching `put_object_copy/5`. Previously reserved characters (including CR/LF) in the source key were sent verbatim, allowing a corrupted copy source or HTTP header injection when the key is attacker-controlled (GHSA-27g7-88jv-xqhq).
+
 v2.5.9 (2025-12-09)
 - Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
 - Fix `put_object` typespec
