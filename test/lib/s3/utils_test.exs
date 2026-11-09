@@ -139,4 +139,30 @@ defmodule ExAws.S3.ImplTest do
                "<Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>0</DaysAfterInitiation></AbortIncompleteMultipartUpload><NoncurrentVersionExpiration><NoncurrentDays>0</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><NoncurrentDays>0</NoncurrentDays><StorageClass></StorageClass></NoncurrentVersionTransition><Expiration><Days>0</Days><ExpiredObjectDeleteMarker>true</ExpiredObjectDeleteMarker></Expiration><Transition><Days>0</Days><StorageClass></StorageClass></Transition><Filter><Prefix>prefix/</Prefix></Filter><Status>Enabled</Status><ID>123</ID></Rule>"
     end
   end
+
+  describe "validate_host_bucket!/1" do
+    test "accepts bucket names made of letters, digits, dots, dashes and underscores" do
+      for bucket <- ["my-bucket", "my.bucket.name", "Legacy_Bucket_1", "mybucket.example.com"] do
+        assert Utils.validate_host_bucket!(bucket) == bucket
+      end
+    end
+
+    test "rejects characters that would change the request host" do
+      for bucket <- [
+            "attacker.example/x?",
+            "bucket?x",
+            "bucket#x",
+            "user@bucket",
+            "bucket:443",
+            "buck et",
+            "bucket\r\n",
+            "b\u00fccket",
+            ""
+          ] do
+        assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+          Utils.validate_host_bucket!(bucket)
+        end
+      end
+    end
+  end
 end

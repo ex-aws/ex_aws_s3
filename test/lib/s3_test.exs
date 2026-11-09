@@ -1062,5 +1062,43 @@ defmodule ExAws.S3Test do
              )
   end
 
+  describe "bucket names used as the request host" do
+    @malicious_bucket "attacker.example/x?"
+
+    test "#presigned_url with virtual_host rejects a bucket name that would change the host" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, @malicious_bucket, "foo.txt", virtual_host: true)
+      end
+    end
+
+    test "#presigned_url with s3_accelerate rejects a bucket name that would change the host" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, @malicious_bucket, "foo.txt", s3_accelerate: true)
+      end
+    end
+
+    test "#presigned_url with bucket_as_host rejects a bucket that is not a plain hostname" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :put, @malicious_bucket, "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true
+        )
+      end
+    end
+
+    test "#presigned_post with virtual_host rejects a bucket name that would change the host" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_post(config(), @malicious_bucket, "foo.txt", virtual_host: true)
+      end
+    end
+
+    test "#presigned_url with virtual_host still accepts ordinary bucket names" do
+      for bucket <- ["my-bucket", "my.bucket.name", "Legacy_Bucket_1"] do
+        {:ok, url} = S3.presigned_url(config(), :get, bucket, "foo.txt", virtual_host: true)
+        assert_pre_signed_url(url, "https://#{bucket}.s3.amazonaws.com/foo.txt", "3600")
+      end
+    end
+  end
+
   defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
 end

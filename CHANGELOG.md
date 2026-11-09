@@ -1,5 +1,8 @@
 # Changelog
 
+Unreleased
+- Security: `presigned_url/5` and `presigned_post/4` now reject bucket names containing anything other than letters, digits, `.`, `-` and `_` when the bucket is used as part of the hostname (`virtual_host: true`, `s3_accelerate: true` or `bucket_as_host: true`). Previously a bucket name such as `attacker.example/x?` produced a URL pointing at `attacker.example` (GHSA-p62r-cgcg-9fm7).
+
 v2.5.9 (2025-12-09)
 - Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
 - Fix `put_object` typespec

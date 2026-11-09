@@ -2129,6 +2129,8 @@ defmodule ExAws.S3 do
 
     case virtual_host do
       true ->
+        bucket = validate_host_bucket!(bucket)
+
         case bucket_as_host do
           true -> "#{config[:scheme]}#{bucket}#{port}#{object}"
           false -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"

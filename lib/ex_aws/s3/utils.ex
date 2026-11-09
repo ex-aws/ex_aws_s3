@@ -66,6 +66,37 @@ defmodule ExAws.S3.Utils do
   end
 
   @doc """
+  Validates that a bucket name is safe to use as (part of) a request hostname.
+
+  Raises `ArgumentError` unless the bucket name consists only of letters,
+  digits, `.`, `-` and `_`. Any other character (such as `/`, `?`, `#`, `@`,
+  `:` or whitespace) would change which host a virtual-host style request or
+  presigned URL points at: a bucket named `attacker.example/x?` turns into
+  `https://attacker.example/x?.s3.amazonaws.com/key`, so the signed request
+  would be sent to `attacker.example`.
+  """
+  def validate_host_bucket!(bucket) when is_binary(bucket) and bucket != "" do
+    if hostname_chars?(bucket) do
+      bucket
+    else
+      raise ArgumentError,
+            "invalid bucket name #{inspect(bucket)} for virtual host style requests: " <>
+              "only letters, digits, `.`, `-` and `_` are allowed"
+    end
+  end
+
+  def validate_host_bucket!(bucket) do
+    raise ArgumentError, "invalid bucket name #{inspect(bucket)} for virtual host style requests"
+  end
+
+  defp hostname_chars?(<<c, rest::binary>>)
+       when c in ?a..?z or c in ?A..?Z or c in ?0..?9 or c in [?., ?-, ?_],
+       do: hostname_chars?(rest)
+
+  defp hostname_chars?(<<>>), do: true
+  defp hostname_chars?(_), do: false
+
+  @doc """
   format_and_take %{param_one: "v1", param_two: "v2"}, [:param_one]
   #=> %{"param-one" => "v1"}
   """
@@ -312,7 +343,7 @@ defmodule ExAws.S3.Utils do
   def sanitized_port_component(_), do: ""
 
   def build_bucket_url(config, bucket_name) do
-    "#{config[:scheme]}#{bucket_name}.#{config[:host]}"
+    "#{config[:scheme]}#{validate_host_bucket!(bucket_name)}.#{config[:host]}"
   end
 
   defp acl_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
