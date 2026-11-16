@@ -1443,6 +1443,25 @@ defmodule ExAws.S3 do
   All other options (ex. `:content_type`) are passed through to
   `ExAws.S3.initiate_multipart_upload/3`.
 
+  ### Using SSE-C encryption
+
+  To upload a file using SSE-C encryption, pass the same `:encryption`
+  option accepted by `put_object/4` to `upload/4`:
+
+      encryption = [
+        customer_algorithm: "AES256",
+        customer_key: key,
+        customer_key_md5: key_md5
+      ]
+
+      "path/to/file.txt"
+      |> ExAws.S3.Upload.stream_file()
+      |> ExAws.S3.upload("example-bucket", "path/to/file.txt", encryption: encryption)
+      |> ExAws.request()
+
+  The SSE-C headers are sent when initiating the multipart upload and with
+  every part. `key` and `key_md5` must be Base64-encoded, just like `put_object/4`.
+
   """
   @spec upload(
           source :: Enumerable.t(),
@@ -1806,11 +1825,27 @@ defmodule ExAws.S3 do
           upload_id :: binary,
           part_number :: pos_integer,
           body :: binary,
-          opts :: [encryption_opts | {:expect, binary}]
+          opts :: [{:encryption, encryption_opts} | {:expect, binary}]
         ) :: ExAws.Operation.S3.t()
-  def upload_part(bucket, object, upload_id, part_number, body, _opts \\ []) do
+  def upload_part(bucket, object, upload_id, part_number, body, opts \\ []) do
     params = %{"uploadId" => upload_id, "partNumber" => part_number}
-    request(:put, bucket, object, params: params, body: body)
+
+    encryption_headers =
+      opts
+      |> Keyword.get(:encryption, [])
+      |> build_encryption_headers()
+      |> Map.take([
+        "x-amz-server-side-encryption-customer-algorithm",
+        "x-amz-server-side-encryption-customer-key",
+        "x-amz-server-side-encryption-customer-key-md5"
+      ])
+
+    headers =
+      opts
+      |> format_and_take([:expect])
+      |> Map.merge(encryption_headers)
+
+    request(:put, bucket, object, params: params, body: body, headers: headers)
   end
 
   @type upload_part_copy_opts :: [

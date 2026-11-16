@@ -18,9 +18,43 @@ defmodule ExAws.S3.UploadTest do
         |> S3.upload("my-bucket", "test.txt")
         |> ExAws.request(exaws_config_for_bypass(bypass))
 
-      assert_received :initiated_upload
-      assert_received :chunk_uploaded
+      assert_received {:initiated_upload, _headers}
+      assert_received {:chunk_uploaded, _part_number, _headers}
       assert_received :completed_upload
+    end
+
+    test "uploading an SSE-C encrypted file with a stream", %{bypass: bypass} do
+      encryption = [
+        customer_algorithm: "AES256",
+        customer_key: Base.encode64(:binary.copy("k", 32)),
+        customer_key_md5: Base.encode64(:crypto.hash(:md5, :binary.copy("k", 32)))
+      ]
+
+      file_path =
+        Path.join(System.tmp_dir!(), "sse-c-upload-#{System.unique_integer([:positive])}")
+
+      on_exit(fn -> File.rm(file_path) end)
+      File.write!(file_path, [:binary.copy("a", 5 * 1024 * 1024), "last part"])
+
+      setup_multipart_upload_backend(bypass, self(), "my-bucket", "test.txt")
+
+      assert {:ok, _} =
+               file_path
+               |> S3.Upload.stream_file()
+               |> S3.upload("my-bucket", "test.txt", encryption: encryption)
+               |> ExAws.request(exaws_config_for_bypass(bypass))
+
+      assert_received {:initiated_upload, init_headers}
+      assert_received {:chunk_uploaded, "1", first_part_headers}
+      assert_received {:chunk_uploaded, "2", last_part_headers}
+      assert_received :completed_upload
+
+      for headers <- [init_headers, first_part_headers, last_part_headers] do
+        assert {"x-amz-server-side-encryption-customer-algorithm", "AES256"} in headers
+        assert {"x-amz-server-side-encryption-customer-key", encryption[:customer_key]} in headers
+
+        assert {"x-amz-server-side-encryption-customer-key-md5", encryption[:customer_key_md5]} in headers
+      end
     end
   end
 
@@ -56,13 +90,13 @@ defmodule ExAws.S3.UploadTest do
           </InitiateMultipartUploadResult>
           """
 
-          send(test_pid, :initiated_upload)
+          send(test_pid, {:initiated_upload, conn.req_headers})
 
           conn
           |> Plug.Conn.send_resp(200, body)
 
         %{method: "PUT", request_path: ^request_path} ->
-          send(test_pid, :chunk_uploaded)
+          send(test_pid, {:chunk_uploaded, conn.query_params["partNumber"], conn.req_headers})
 
           conn
           |> Plug.Conn.put_resp_header("ETag", "abc123")
