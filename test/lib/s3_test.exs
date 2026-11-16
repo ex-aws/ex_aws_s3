@@ -104,6 +104,47 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#upload_part with SSE-C encryption" do
+    encryption = [
+      customer_algorithm: "AES256",
+      customer_key: "customer-key",
+      customer_key_md5: "customer-key-md5"
+    ]
+
+    op = S3.upload_part("bucket", "object", "upload-id", 1, "data", encryption: encryption)
+
+    assert op.headers == %{
+             "x-amz-server-side-encryption-customer-algorithm" => "AES256",
+             "x-amz-server-side-encryption-customer-key" => "customer-key",
+             "x-amz-server-side-encryption-customer-key-md5" => "customer-key-md5"
+           }
+
+    assert op.params == %{"uploadId" => "upload-id", "partNumber" => 1}
+    assert op.body == "data"
+  end
+
+  test "#upload_part does not forward initiation-only options" do
+    for encryption <- ["AES256", [aws_kms_key_id: "kms-key"]] do
+      op =
+        S3.upload_part("bucket", "object", "upload-id", 1, "data",
+          encryption: encryption,
+          content_type: "text/plain",
+          acl: :private,
+          meta: [foo: "bar"]
+        )
+
+      assert op.headers == %{}
+    end
+
+    assert S3.upload_part("bucket", "object", "upload-id", 1, "data").headers == %{}
+  end
+
+  test "#upload_part with expect header" do
+    op = S3.upload_part("bucket", "object", "upload-id", 1, "data", expect: "100-continue")
+
+    assert op.headers == %{"expect" => "100-continue"}
+  end
+
   test "#put_bucket with non-us-east-1 region" do
     region = "not-us-east-1"
     bucket = "new.bucket"
