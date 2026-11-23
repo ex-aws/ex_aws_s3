@@ -1779,12 +1779,34 @@ defmodule ExAws.S3 do
   defp strip_leading_slash("/" <> rest), do: rest
   defp strip_leading_slash(key), do: key
 
-  # `.` is an unreserved character, so `.` and `..` segments would be sent as
-  # they are. S3 treats them as literal key names, but encoding the dots keeps
-  # anything between the client and S3 from reading them as path traversal.
-  defp encode_copy_source_segment("."), do: "%2E"
-  defp encode_copy_source_segment(".."), do: "%2E%2E"
-  defp encode_copy_source_segment(segment), do: URI.encode(segment, &URI.char_unreserved?/1)
+  # Percent-encodes the bucket or one segment of the object key for the
+  # `x-amz-copy-source` header. `.` is an unreserved character, so `.` and `..`
+  # segments would otherwise be sent as they are; S3 treats them as literal key
+  # names, but encoding the dots keeps anything between the client and S3 from
+  # reading them as path traversal.
+  #
+  # The encoding itself is `ExAws.Request.Url.encode_path_segment/1`, which is
+  # shared by the ex_aws service libraries: everything outside the RFC 3986
+  # unreserved set is encoded, including "/", "?", "#" and ":", and so are the
+  # dot segments "." and "..".
+  #
+  # ex_aws releases that predate that function are still supported, so it is
+  # called only when it exists and the same encoding is done here otherwise.
+  # Once the ex_aws requirement in mix.exs is raised to a release that has it,
+  # the fallback (and `apply/3`, which is only there to keep the compiler from
+  # warning about a function older releases lack) can go.
+  defp encode_copy_source_segment(segment) do
+    if Code.ensure_loaded?(ExAws.Request.Url) and
+         function_exported?(ExAws.Request.Url, :encode_path_segment, 1) do
+      apply(ExAws.Request.Url, :encode_path_segment, [segment])
+    else
+      case to_string(segment) do
+        "." -> "%2E"
+        ".." -> "%2E%2E"
+        string -> URI.encode(string, &URI.char_unreserved?/1)
+      end
+    end
+  end
 
   @type initiate_multipart_upload_opt ::
           {:cache_control, binary}
