@@ -1092,6 +1092,117 @@ defmodule ExAws.S3Test do
       end
     end
 
+    test "#presigned_url with bucket_as_host and no allowlist accepts any hostname" do
+      {:ok, url} =
+        S3.presigned_url(config(), :get, "mybucket.example.com", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true
+        )
+
+      assert_pre_signed_url(url, "https://mybucket.example.com/foo.txt", "3600")
+    end
+
+    test "#presigned_url with bucket_as_host only accepts hosts in the allowlist option" do
+      opts = [
+        virtual_host: true,
+        bucket_as_host: true,
+        bucket_as_host_allowlist: ["assets.example.com", "media.example.com"]
+      ]
+
+      for bucket <- ["assets.example.com", "MEDIA.example.com"] do
+        {:ok, url} = S3.presigned_url(config(), :get, bucket, "foo.txt", opts)
+        assert_pre_signed_url(url, "https://#{bucket}/foo.txt", "3600")
+      end
+
+      for bucket <- [
+            "attacker.example",
+            "169.254.169.254",
+            "localhost",
+            "assets.example.com.",
+            "assets.example.com.attacker.example",
+            "xassets.example.com"
+          ] do
+        assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+          S3.presigned_url(config(), :put, bucket, "foo.txt", opts)
+        end
+      end
+    end
+
+    test "#presigned_post with bucket_as_host only accepts hosts in the allowlist option" do
+      opts = [
+        virtual_host: true,
+        bucket_as_host: true,
+        bucket_as_host_allowlist: ["assets.example.com"]
+      ]
+
+      assert %{url: "https://assets.example.com"} =
+               S3.presigned_post(config(), "assets.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_post(config(), "attacker.example", "foo.txt", opts)
+      end
+    end
+
+    test "bucket_as_host falls back to the allowlist in the S3 config" do
+      config = Map.put(config(), :bucket_as_host_allowlist, ["assets.example.com"])
+      opts = [virtual_host: true, bucket_as_host: true]
+
+      assert {:ok, _url} = S3.presigned_url(config, :get, "assets.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config, :get, "attacker.example", "foo.txt", opts)
+      end
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_post(config, "attacker.example", "foo.txt", opts)
+      end
+    end
+
+    test "the allowlist option takes precedence over the S3 config" do
+      config = Map.put(config(), :bucket_as_host_allowlist, ["assets.example.com"])
+
+      opts = [
+        virtual_host: true,
+        bucket_as_host: true,
+        bucket_as_host_allowlist: ["media.example.com"]
+      ]
+
+      assert {:ok, _url} = S3.presigned_url(config, :get, "media.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config, :get, "assets.example.com", "foo.txt", opts)
+      end
+    end
+
+    test "an empty allowlist rejects every bucket_as_host bucket" do
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config(), :get, "assets.example.com", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true,
+          bucket_as_host_allowlist: []
+        )
+      end
+    end
+
+    test "an allowlist that is not a list fails closed" do
+      # Older ex_aws versions collapse a list in the S3 config to its first element.
+      config = Map.put(config(), :bucket_as_host_allowlist, "assets.example.com")
+
+      assert_raise ArgumentError, ~r/expected a list of hostnames/, fn ->
+        S3.presigned_url(config, :get, "assets.example.com", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true
+        )
+      end
+    end
+
+    test "the allowlist does not apply without bucket_as_host" do
+      opts = [virtual_host: true, bucket_as_host_allowlist: ["assets.example.com"]]
+
+      {:ok, url} = S3.presigned_url(config(), :get, "my-bucket", "foo.txt", opts)
+      assert_pre_signed_url(url, "https://my-bucket.s3.amazonaws.com/foo.txt", "3600")
+    end
+
     test "#presigned_url with virtual_host still accepts ordinary bucket names" do
       for bucket <- ["my-bucket", "my.bucket.name", "Legacy_Bucket_1"] do
         {:ok, url} = S3.presigned_url(config(), :get, bucket, "foo.txt", virtual_host: true)

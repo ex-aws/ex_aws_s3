@@ -89,6 +89,34 @@ defmodule ExAws.S3.Utils do
     raise ArgumentError, "invalid bucket name #{inspect(bucket)} for virtual host style requests"
   end
 
+  @doc """
+  Validates a `bucket_as_host` hostname against an allowlist of trusted hosts.
+
+  With `bucket_as_host: true` the bucket name is the entire hostname, so
+  `validate_host_bucket!/1` cannot stop a bucket such as `attacker.example` or
+  `169.254.169.254` from becoming the host. When `allowlist` is a list, the
+  host must match one of its entries exactly (case-insensitive) or
+  `ArgumentError` is raised. When it is `nil`, no allowlist is configured and
+  the host is returned unchanged.
+  """
+  def validate_allowed_host!(host, nil), do: host
+
+  def validate_allowed_host!(host, allowlist) when is_list(allowlist) do
+    downcased = String.downcase(host)
+
+    if Enum.any?(allowlist, &(is_binary(&1) and String.downcase(&1) == downcased)) do
+      host
+    else
+      raise ArgumentError,
+            "bucket #{inspect(host)} is not in the configured `bucket_as_host_allowlist`"
+    end
+  end
+
+  def validate_allowed_host!(_host, allowlist) do
+    raise ArgumentError,
+          "invalid `bucket_as_host_allowlist` #{inspect(allowlist)}: expected a list of hostnames"
+  end
+
   defp hostname_chars?(<<c, rest::binary>>)
        when c in ?a..?z or c in ?A..?Z or c in ?0..?9 or c in [?., ?-, ?_],
        do: hostname_chars?(rest)
