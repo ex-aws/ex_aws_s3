@@ -1963,6 +1963,15 @@ defmodule ExAws.S3 do
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
 
+  ## Object keys containing `?`
+
+  The object key is signed as given: a `?` in it is part of the key and never
+  starts the query string, so `"report.pdf?acl"` is the object of that name.
+  Pass query parameters with `:query_params`, not by appending them to the key.
+  This needs a version of `ex_aws` that includes the fix for
+  GHSA-96q9-mcc7-hqj8. With an older `ex_aws`, a bucket or key containing `?`
+  raises `ArgumentError`.
+
   ## Bucket names and the URL host
 
   When the bucket is used as part of the hostname (`:virtual_host`,
@@ -2037,7 +2046,10 @@ defmodule ExAws.S3 do
         {:error, "expires_in_exceeds_one_week"}
 
       false ->
-        url = url_to_sign(bucket, object, config, virtual_host, bucket_as_host, host_allowlist)
+        url =
+          bucket
+          |> url_parts(object, config, virtual_host, bucket_as_host, host_allowlist)
+          |> presign_target()
 
         datetime =
           Keyword.get(opts, :start_datetime, NaiveDateTime.utc_now())
@@ -2157,7 +2169,7 @@ defmodule ExAws.S3 do
     signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, datetime, policy)
 
     %{
-      url: url_to_sign(bucket, nil, config, virtual_host, bucket_as_host, host_allowlist),
+      url: post_url(bucket, config, virtual_host, bucket_as_host, host_allowlist),
       fields:
         %{
           "key" => key,
@@ -2191,7 +2203,16 @@ defmodule ExAws.S3 do
     end
   end
 
-  defp url_to_sign(bucket, object, config, virtual_host, bucket_as_host, host_allowlist) do
+  defp post_url(bucket, config, virtual_host, bucket_as_host, host_allowlist) do
+    {base, path} = url_parts(bucket, nil, config, virtual_host, bucket_as_host, host_allowlist)
+    base <> path
+  end
+
+  # Returns the URL of a bucket or object in two parts: `scheme://host[:port]`
+  # and the *unencoded* path. They are kept apart so that nothing in the bucket
+  # or object key has to be found again by parsing a URL string, where a `?`
+  # or `#` in the key would be read as the start of the query or fragment.
+  defp url_parts(bucket, object, config, virtual_host, bucket_as_host, host_allowlist) do
     port = sanitized_port_component(config)
 
     object =
@@ -2210,15 +2231,71 @@ defmodule ExAws.S3 do
             # The bucket is the whole hostname here, so the character check
             # alone cannot keep the URL off an attacker-chosen host.
             bucket = validate_allowed_host!(bucket, host_allowlist)
-            "#{config[:scheme]}#{bucket}#{port}#{object}"
+            {"#{config[:scheme]}#{bucket}#{port}", object}
 
           false ->
-            "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
+            {"#{config[:scheme]}#{bucket}.#{config[:host]}#{port}", object}
         end
 
       false ->
-        "#{config[:scheme]}#{config[:host]}#{port}/#{bucket}#{object}"
+        {"#{config[:scheme]}#{config[:host]}#{port}", "/#{bucket}#{object}"}
     end
+  end
+
+  # `ExAws.Auth.presigned_url/9` takes the URL to sign either as a `%URI{}`
+  # whose `path` is the unencoded request path, or as a string. Only the first
+  # form can carry a `?` in the object key: in a string the `?` starts the
+  # query, so the key `report.pdf?acl` would be signed as the object
+  # `report.pdf` with the `acl` sub-resource (GHSA-96q9-mcc7-hqj8).
+  #
+  # ex_aws releases without that fix accept only the string. They still work
+  # for every key that has no `?` in it; one that does is refused rather than
+  # presigned for a different object.
+  defp presign_target({base, path}) do
+    cond do
+      auth_accepts_uri?() ->
+        %URI{URI.parse(base) | path: path}
+
+      String.contains?(path, "?") ->
+        raise ArgumentError,
+              "cannot presign #{inspect(path)}: the installed version of ex_aws would treat " <>
+                "the `?` as the start of the query string. Upgrade ex_aws to a version that " <>
+                "includes the fix for GHSA-96q9-mcc7-hqj8, and pass query parameters with " <>
+                "the `:query_params` option instead of appending them to the object key"
+
+      true ->
+        base <> path
+    end
+  end
+
+  # Whether the installed ex_aws presigns a `%URI{}` and keeps a `?` in its
+  # path as part of the key. Asked once by presigning a fixed URI with dummy
+  # credentials; nothing is sent anywhere.
+  defp auth_accepts_uri? do
+    key = {__MODULE__, :auth_accepts_uri}
+
+    case :persistent_term.get(key, nil) do
+      nil ->
+        accepts? = probe_auth_accepts_uri()
+        :persistent_term.put(key, accepts?)
+        accepts?
+
+      accepts? ->
+        accepts?
+    end
+  end
+
+  defp probe_auth_accepts_uri do
+    uri = %URI{URI.parse("https://probe.invalid") | path: "/a?b"}
+    config = %{access_key_id: "probe", secret_access_key: "probe", region: "us-east-1"}
+    datetime = {{2000, 1, 1}, {0, 0, 0}}
+
+    match?(
+      {:ok, "https://probe.invalid/a%3Fb?" <> _},
+      ExAws.Auth.presigned_url(:get, uri, :s3, datetime, config, 60, [], nil, [])
+    )
+  rescue
+    _ -> false
   end
 
   defp request(http_method, bucket, path, data \\ [], opts \\ %{}) do

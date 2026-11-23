@@ -532,12 +532,93 @@ defmodule ExAws.S3Test do
     )
   end
 
-  test "#presigned_url file is key with embedded query params" do
-    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "/foo/bar.txt?d=400")
+  describe "#presigned_url with ? in the object key (GHSA-96q9-mcc7-hqj8)" do
+    # Keeping the `?` in the key needs an ex_aws release whose
+    # `ExAws.Auth.presigned_url/9` accepts a `%URI{}`. With an older ex_aws such
+    # a key is refused instead of being presigned for a different object.
+    defp presigned_path(http_method, bucket, object, opts \\ []) do
+      {:ok, url} = S3.presigned_url(config(), http_method, bucket, object, opts)
+      [base, query] = String.split(url, "?", parts: 2)
+      {base, URI.decode_query(query)}
+    end
 
-    assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo/bar.txt", "3600", %{
-      "d" => "400"
-    })
+    defp ex_aws_keeps_question_mark? do
+      match?({:ok, _url}, S3.presigned_url(config(), :get, "bucket", "a?b"))
+    rescue
+      ArgumentError -> false
+    end
+
+    test "a ? in the key is not turned into query params" do
+      if ex_aws_keeps_question_mark?() do
+        {base, query} = presigned_path(:get, "bucket", "/foo/bar.txt?d=400")
+        assert base == "https://s3.amazonaws.com/bucket/foo/bar.txt%3Fd%3D400"
+        refute Map.has_key?(query, "d")
+
+        {base, query} = presigned_path(:put, "victim-bucket", "report.pdf?acl")
+        assert base == "https://s3.amazonaws.com/victim-bucket/report.pdf%3Facl"
+        refute Map.has_key?(query, "acl")
+
+        {base, query} = presigned_path(:get, "victim-bucket", "export.dump?.txt")
+        assert base == "https://s3.amazonaws.com/victim-bucket/export.dump%3F.txt"
+        refute Map.has_key?(query, ".txt")
+      else
+        for key <- ["/foo/bar.txt?d=400", "report.pdf?acl", "export.dump?.txt"] do
+          assert_raise ArgumentError, ~r/GHSA-96q9-mcc7-hqj8/, fn ->
+            S3.presigned_url(config(), :get, "bucket", key)
+          end
+        end
+      end
+    end
+
+    test "a ? in the key is kept with virtual host addressing" do
+      for opts <- [[virtual_host: true], [s3_accelerate: true]] do
+        if ex_aws_keeps_question_mark?() do
+          {base, query} = presigned_path(:put, "victim-bucket", "report.pdf?acl", opts)
+          assert String.ends_with?(base, "amazonaws.com/report.pdf%3Facl")
+          assert URI.parse(base).host =~ ~r/^victim-bucket\.s3(-accelerate)?\.amazonaws\.com$/
+          refute Map.has_key?(query, "acl")
+        else
+          assert_raise ArgumentError, ~r/GHSA-96q9-mcc7-hqj8/, fn ->
+            S3.presigned_url(config(), :put, "victim-bucket", "report.pdf?acl", opts)
+          end
+        end
+      end
+    end
+
+    test "a ? in a path style bucket name does not start the query" do
+      if ex_aws_keeps_question_mark?() do
+        {base, query} = presigned_path(:get, "photos?policy", "obj.txt")
+        assert base == "https://s3.amazonaws.com/photos%3Fpolicy/obj.txt"
+        refute Map.has_key?(query, "policy/obj.txt")
+      else
+        assert_raise ArgumentError, ~r/GHSA-96q9-mcc7-hqj8/, fn ->
+          S3.presigned_url(config(), :get, "photos?policy", "obj.txt")
+        end
+      end
+    end
+
+    test "query params are passed with the :query_params option" do
+      opts = [query_params: [{"versionId", "1"}]]
+
+      if ex_aws_keeps_question_mark?() do
+        {base, query} = presigned_path(:get, "bucket", "a?b.txt", opts)
+        assert base == "https://s3.amazonaws.com/bucket/a%3Fb.txt"
+        assert query["versionId"] == "1"
+      end
+
+      {base, query} = presigned_path(:get, "bucket", "a.txt", opts)
+      assert base == "https://s3.amazonaws.com/bucket/a.txt"
+      assert query["versionId"] == "1"
+    end
+
+    test "keys without ? are presigned as before" do
+      {base, _query} = presigned_path(:get, "bucket", "dir/a b+c#d%.txt")
+      assert base == "https://s3.amazonaws.com/bucket/dir/a%20b%2Bc%23d%25.txt"
+
+      config = ExAws.Config.new(:s3, port: 9000, scheme: "http://", host: "localhost")
+      {:ok, url} = S3.presigned_url(config, :get, "bucket", "a b.txt")
+      assert String.starts_with?(url, "http://localhost:9000/bucket/a%20b.txt?")
+    end
   end
 
   test "#presigned_url raises exception on bad expires_in option" do
