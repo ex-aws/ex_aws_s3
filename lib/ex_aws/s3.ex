@@ -1760,16 +1760,31 @@ defmodule ExAws.S3 do
   # path segment of the object key are percent-encoded so that reserved
   # characters (including CR/LF) cannot alter the meaning of the header or
   # inject additional headers into the request.
+  #
+  # The key is otherwise passed through as given: S3 keys are literal, so
+  # `a//b` and `dir/` name different objects from `a/b` and `dir`, and empty
+  # segments must be kept. A single leading `/` is dropped because callers have
+  # long been able to pass `/key` for `key`.
   defp copy_source_header(src_bucket, src_object) do
     encoded_src_object =
       src_object
+      |> to_string()
+      |> strip_leading_slash()
       |> String.split("/")
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.map(fn str -> URI.encode(str, &URI.char_unreserved?/1) end)
-      |> Enum.join("/")
+      |> Enum.map_join("/", &encode_copy_source_segment/1)
 
-    "/#{URI.encode(src_bucket, &URI.char_unreserved?/1)}/#{encoded_src_object}"
+    "/#{encode_copy_source_segment(to_string(src_bucket))}/#{encoded_src_object}"
   end
+
+  defp strip_leading_slash("/" <> rest), do: rest
+  defp strip_leading_slash(key), do: key
+
+  # `.` is an unreserved character, so `.` and `..` segments would be sent as
+  # they are. S3 treats them as literal key names, but encoding the dots keeps
+  # anything between the client and S3 from reading them as path traversal.
+  defp encode_copy_source_segment("."), do: "%2E"
+  defp encode_copy_source_segment(".."), do: "%2E%2E"
+  defp encode_copy_source_segment(segment), do: URI.encode(segment, &URI.char_unreserved?/1)
 
   @type initiate_multipart_upload_opt ::
           {:cache_control, binary}

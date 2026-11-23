@@ -266,6 +266,74 @@ defmodule ExAws.S3Test do
              )
   end
 
+  describe "x-amz-copy-source key handling" do
+    defp put_copy_source(src_bucket, src_object) do
+      S3.put_object_copy("dest-bucket", "dest-object", src_bucket, src_object).headers[
+        "x-amz-copy-source"
+      ]
+    end
+
+    defp part_copy_source(src_bucket, src_object) do
+      S3.upload_part_copy(
+        "dest-bucket",
+        "dest-object",
+        src_bucket,
+        src_object,
+        "upload-id",
+        1,
+        1..9
+      ).headers["x-amz-copy-source"]
+    end
+
+    test "empty key segments are kept" do
+      for {key, expected} <- [
+            {"a//b", "/src-bucket/a//b"},
+            {"dir/", "/src-bucket/dir/"},
+            {"a/b//", "/src-bucket/a/b//"}
+          ] do
+        assert put_copy_source("src-bucket", key) == expected
+        assert part_copy_source("src-bucket", key) == expected
+      end
+    end
+
+    test "only one leading slash is dropped" do
+      for {key, expected} <- [
+            {"/admin/secret", "/src-bucket/admin/secret"},
+            {"//admin/secret", "/src-bucket//admin/secret"}
+          ] do
+        assert put_copy_source("src-bucket", key) == expected
+        assert part_copy_source("src-bucket", key) == expected
+      end
+    end
+
+    test "dot segments are percent encoded" do
+      for {key, expected} <- [
+            {"a/../b", "/src-bucket/a/%2E%2E/b"},
+            {"../other-bucket/key", "/src-bucket/%2E%2E/other-bucket/key"},
+            {"./a/.", "/src-bucket/%2E/a/%2E"},
+            {"a/.hidden/v1.2..txt", "/src-bucket/a/.hidden/v1.2..txt"}
+          ] do
+        assert put_copy_source("src-bucket", key) == expected
+        assert part_copy_source("src-bucket", key) == expected
+      end
+
+      assert part_copy_source("..", "key") == "/%2E%2E/key"
+    end
+
+    test "the bucket cannot add path segments" do
+      assert put_copy_source("src-bucket/other", "key") == "/src-bucket%2Fother/key"
+      assert part_copy_source("src-bucket/other", "key") == "/src-bucket%2Fother/key"
+    end
+
+    test "charlist and atom arguments are still accepted" do
+      assert part_copy_source(~c"src-bucket", ~c"foo/hello friend.txt") ==
+               "/src-bucket/foo/hello%20friend.txt"
+
+      assert part_copy_source(:src_bucket, "key") == "/src_bucket/key"
+      assert put_copy_source(~c"src-bucket", ~c"key") == "/src-bucket/key"
+    end
+  end
+
   test "#complete_multipart_upload" do
     expected = %Operation.S3{
       body:

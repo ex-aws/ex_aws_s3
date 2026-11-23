@@ -2,6 +2,9 @@
 
 Unreleased
 - Security: percent-encode the bucket and object key in the `x-amz-copy-source` header built by `upload_part_copy/8`, matching `put_object_copy/5`. Previously reserved characters (including CR/LF) in the source key were sent verbatim, allowing a corrupted copy source or HTTP header injection when the key is attacker-controlled (GHSA-27g7-88jv-xqhq).
+- Fix: `put_object_copy/5` and `upload_part_copy/8` no longer drop empty segments from the source key. `a//b` and `dir/` used to be sent as `a/b` and `dir`, which name different objects. A single leading `/` is still dropped, so `/key` keeps meaning `key`.
+- `.` and `..` segments of the source key are sent as `%2E` and `%2E%2E` in `x-amz-copy-source`. S3 decodes them back to the same literal key.
+- Behaviour change: because the source key passed to `upload_part_copy/8` is now percent-encoded, a `?versionId=...` suffix appended to it is treated as part of the key name rather than as a version selector, as was already the case for `put_object_copy/5`.
 
 v2.5.9 (2025-12-09)
 - Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
