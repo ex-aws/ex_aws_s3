@@ -1174,6 +1174,59 @@ defmodule ExAws.S3Test do
       end
     end
 
+    test "a nil allowlist option does not switch off the allowlist in the S3 config" do
+      config = Map.put(config(), :bucket_as_host_allowlist, ["assets.example.com"])
+      opts = [virtual_host: true, bucket_as_host: true, bucket_as_host_allowlist: nil]
+
+      assert {:ok, _url} = S3.presigned_url(config, :get, "assets.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config, :get, "attacker.example", "foo.txt", opts)
+      end
+    end
+
+    test "the allowlist in the S3 config survives ExAws.Config.new/2" do
+      # Needs an ex_aws release with the GHSA-rcv9-2jx2-63xh fix. Older releases
+      # collapse the list to its first element, which fails closed (see below).
+      config =
+        config(bucket_as_host_allowlist: ["assets.example.com", "media.example.com"])
+
+      opts = [virtual_host: true, bucket_as_host: true]
+
+      if is_list(config[:bucket_as_host_allowlist]) do
+        assert {:ok, _url} = S3.presigned_url(config, :get, "media.example.com", "foo.txt", opts)
+
+        assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+          S3.presigned_url(config, :get, "attacker.example", "foo.txt", opts)
+        end
+      else
+        assert_raise ArgumentError, ~r/expected a list of hostnames/, fn ->
+          S3.presigned_url(config, :get, "media.example.com", "foo.txt", opts)
+        end
+      end
+    end
+
+    test "atom bucket names are checked as strings" do
+      {:ok, url} = S3.presigned_url(config(), :get, :my_bucket, "foo.txt", virtual_host: true)
+      assert_pre_signed_url(url, "https://my_bucket.s3.amazonaws.com/foo.txt", "3600")
+
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, :"attacker.example/x?", "foo.txt", virtual_host: true)
+      end
+
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, nil, "foo.txt", virtual_host: true)
+      end
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_post(config(), :"attacker.example", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true,
+          bucket_as_host_allowlist: ["assets.example.com"]
+        )
+      end
+    end
+
     test "an empty allowlist rejects every bucket_as_host bucket" do
       assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
         S3.presigned_url(config(), :get, "assets.example.com", "foo.txt",

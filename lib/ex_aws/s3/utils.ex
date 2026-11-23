@@ -68,8 +68,8 @@ defmodule ExAws.S3.Utils do
   @doc """
   Validates that a bucket name is safe to use as (part of) a request hostname.
 
-  Raises `ArgumentError` unless the bucket name consists only of letters,
-  digits, `.`, `-` and `_`. Any other character (such as `/`, `?`, `#`, `@`,
+  Returns the bucket name as a string. Raises `ArgumentError` unless it
+  consists only of letters, digits, `.`, `-` and `_`. Any other character (such as `/`, `?`, `#`, `@`,
   `:` or whitespace) would change which host a virtual-host style request or
   presigned URL points at: a bucket named `attacker.example/x?` turns into
   `https://attacker.example/x?.s3.amazonaws.com/key`, so the signed request
@@ -83,6 +83,12 @@ defmodule ExAws.S3.Utils do
             "invalid bucket name #{inspect(bucket)} for virtual host style requests: " <>
               "only letters, digits, `.`, `-` and `_` are allowed"
     end
+  end
+
+  # Atom bucket names are accepted for requests by `ExAws.Operation.S3`, so
+  # they are accepted here too and checked as the string they turn into.
+  def validate_host_bucket!(bucket) when is_atom(bucket) and bucket != nil do
+    bucket |> Atom.to_string() |> validate_host_bucket!()
   end
 
   def validate_host_bucket!(bucket) do

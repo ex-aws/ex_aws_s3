@@ -2181,11 +2181,13 @@ defmodule ExAws.S3 do
     """
   end
 
-  # The option param wins over the S3 config key of the same name.
+  # The option param wins over the S3 config key of the same name. A `nil`
+  # option counts as not given, so it cannot switch off an allowlist that is
+  # set in the config.
   defp bucket_as_host_allowlist(opts, config) do
-    case Keyword.fetch(opts, :bucket_as_host_allowlist) do
-      {:ok, allowlist} -> allowlist
-      :error -> config[:bucket_as_host_allowlist]
+    case Keyword.get(opts, :bucket_as_host_allowlist) do
+      nil -> config[:bucket_as_host_allowlist]
+      allowlist -> allowlist
     end
   end
 
