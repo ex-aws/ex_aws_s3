@@ -252,4 +252,42 @@ defmodule ExAws.S3.ImplTest do
     assert Utils.escape_xml_string("plain") == "plain"
     assert Utils.escape_xml_string(10) == "10"
   end
+
+  describe "validate_headers!/1" do
+    test "returns the headers unchanged when they are valid" do
+      headers = %{
+        "x-amz-meta-comment" => "hello world\t!",
+        "content-length" => 5,
+        "x-amz-meta-city" => "Zürich"
+      }
+
+      assert Utils.validate_headers!(headers) == headers
+      assert Utils.validate_headers!([{"x-amz-acl", :private}]) == [{"x-amz-acl", :private}]
+      assert Utils.validate_headers!(%{}) == %{}
+    end
+
+    test "rejects control characters in values" do
+      for bad <- ["a\r\nb", "a\nb", "a\rb", "a\0b", "a\x7fb", "a\x01b"] do
+        assert_raise ArgumentError, ~r/invalid value for HTTP header "x-amz-meta-a"/, fn ->
+          Utils.validate_headers!(%{"x-amz-meta-a" => bad})
+        end
+      end
+    end
+
+    test "rejects invalid header names" do
+      for bad <- ["", "x-amz-meta-a\r\nX-Evil: y", "x amz", "x:amz", "x-amz-meta-ü"] do
+        assert_raise ArgumentError, ~r/invalid HTTP header name/, fn ->
+          Utils.validate_headers!(%{bad => "value"})
+        end
+      end
+    end
+
+    test "validates non-binary names and values the way they will be serialised" do
+      assert_raise ArgumentError, fn -> Utils.validate_headers!([{:"x\r\ny", "v"}]) end
+
+      assert_raise ArgumentError, fn ->
+        Utils.validate_headers!([{"x-amz-meta-a", [?a, ?\r, ?\n, ?b]}])
+      end
+    end
+  end
 end

@@ -1371,4 +1371,60 @@ defmodule ExAws.S3Test do
   end
 
   defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
+
+  describe "HTTP header injection protection" do
+    @crlf_value "legit\r\nX-Injected-By-Attacker: pwned\r\nX-Smuggled: yes"
+
+    test "#put_object rejects CR/LF in metadata values" do
+      assert_raise ArgumentError, ~r/x-amz-meta-comment/, fn ->
+        S3.put_object("bucket", "object", "data", meta: [{"comment", @crlf_value}])
+      end
+    end
+
+    test "#put_object rejects CR/LF in metadata keys" do
+      assert_raise ArgumentError, ~r/invalid HTTP header name/, fn ->
+        S3.put_object("bucket", "object", "data", meta: [{"comment\r\nX-Evil: 1", "value"}])
+      end
+    end
+
+    test "#put_object rejects CR/LF in other header options" do
+      assert_raise ArgumentError, ~r/content-disposition/, fn ->
+        S3.put_object("bucket", "object", "data",
+          content_disposition: "attachment; filename=\"a.txt\"\r\nX-Evil: 1"
+        )
+      end
+    end
+
+    test "#put_object_copy rejects CR/LF in metadata" do
+      assert_raise ArgumentError, fn ->
+        S3.put_object_copy("dest", "object", "src", "object", meta: [comment: @crlf_value])
+      end
+    end
+
+    test "#initiate_multipart_upload rejects CR/LF in metadata" do
+      assert_raise ArgumentError, fn ->
+        S3.initiate_multipart_upload("bucket", "object", meta: [comment: @crlf_value])
+      end
+    end
+
+    test "caller-supplied headers are validated too" do
+      assert_raise ArgumentError, fn ->
+        S3.list_objects("bucket", headers: %{"x-amz-request-payer" => @crlf_value})
+      end
+
+      assert_raise ArgumentError, fn ->
+        S3.get_object_acl("bucket", "object", [{"x-amz-request-payer", @crlf_value}])
+      end
+    end
+
+    test "ordinary metadata is still accepted" do
+      %Operation.S3{headers: headers} =
+        S3.put_object("bucket", "object", "data",
+          meta: [{"comment", "tabs\tand spaces and ünïcödé"}, {:owner_id, 42}]
+        )
+
+      assert headers["x-amz-meta-comment"] == "tabs\tand spaces and ünïcödé"
+      assert headers["x-amz-meta-owner_id"] == 42
+    end
+  end
 end
