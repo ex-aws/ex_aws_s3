@@ -66,6 +66,58 @@ defmodule ExAws.S3.Utils do
   end
 
   @doc """
+  Validates that every header name and value is safe to put on the wire.
+
+  Raises `ArgumentError` if a header name is not an RFC 9110 token, or if a
+  header value contains control characters such as CR or LF. Without this check,
+  headers built from untrusted input (for example `x-amz-meta-*`) could be used
+  for HTTP header injection / request splitting.
+  """
+  def validate_headers!(headers) do
+    Enum.each(headers, fn {name, value} ->
+      name = header_to_binary(name)
+
+      unless valid_header_name?(name) do
+        raise ArgumentError,
+              "invalid HTTP header name #{inspect(name)}: header names may only contain " <>
+                "RFC 9110 token characters"
+      end
+
+      unless valid_header_value?(header_to_binary(value)) do
+        raise ArgumentError,
+              "invalid value for HTTP header #{inspect(name)}: #{inspect(value)} contains " <>
+                "control characters (such as CR or LF), which are not allowed"
+      end
+    end)
+
+    headers
+  end
+
+  @tchar_punctuation String.to_charlist("!#$%&'*+-.^_`|~")
+
+  defp valid_header_name?(<<>>), do: false
+  defp valid_header_name?(name), do: all_tchars?(name)
+
+  defp all_tchars?(<<c, rest::binary>>)
+       when c in ?a..?z or c in ?A..?Z or c in ?0..?9 or c in @tchar_punctuation,
+       do: all_tchars?(rest)
+
+  defp all_tchars?(<<>>), do: true
+  defp all_tchars?(_), do: false
+
+  # Field values may contain visible ASCII, space, horizontal tab and obs-text
+  # (bytes >= 0x80). Everything else (CR, LF, NUL and other control characters)
+  # is rejected.
+  defp valid_header_value?(<<c, rest::binary>>) when c == ?\t or (c >= 0x20 and c != 0x7F),
+    do: valid_header_value?(rest)
+
+  defp valid_header_value?(<<>>), do: true
+  defp valid_header_value?(_), do: false
+
+  defp header_to_binary(value) when is_binary(value), do: value
+  defp header_to_binary(value), do: to_string(value)
+
+  @doc """
   Validates that a bucket name is safe to use as (part of) a request hostname.
 
   Returns the bucket name as a string. Raises `ArgumentError` unless it
@@ -188,13 +240,44 @@ defmodule ExAws.S3.Utils do
     grants =
       grantees
       |> Enum.map(fn
-        {:email, email} -> "emailAddress=\"#{email}\""
-        {key, value} -> "#{key}=\"#{value}\""
+        {:email, email} -> format_grantee("emailAddress", email)
+        {type, identifier} -> format_grantee(type, identifier)
       end)
       |> Enum.join(", ")
 
     {permission, grants}
   end
+
+  # A grant header is a comma-separated list of `type="identifier"` tokens and the
+  # grammar has no escaping mechanism. If an identifier were interpolated verbatim, a
+  # value such as `x", uri="http://acs.amazonaws.com/groups/global/AllUsers` would close
+  # the quoted token and smuggle in a second grantee (GHSA-6fg2-v8g4-vfg2). Every legitimate
+  # grantee identifier (canonical user id, email address or group URI) consists solely of
+  # printable ASCII, so anything outside that range, or the structural `"` and `,`
+  # characters, is rejected rather than escaped.
+  defp format_grantee(type, identifier) do
+    type = to_string(type)
+    identifier = to_string(identifier)
+
+    if safe_grantee_component?(type) and safe_grantee_component?(identifier) do
+      ~s(#{type}="#{identifier}")
+    else
+      raise ArgumentError,
+            "invalid S3 grantee #{type}=#{inspect(identifier)}: grantee types and identifiers " <>
+              "may only contain printable ASCII characters other than `\"` and `,`"
+    end
+  end
+
+  # 0x20 (space) through 0x7E (tilde) is exactly the printable ASCII range: everything
+  # below 0x20 is a control character (including CR/LF, which would allow HTTP header
+  # injection), 0x7F is DEL, and anything above is non-ASCII. Within that range only the
+  # double quote and comma carry structural meaning in the grant header grammar.
+  defp safe_grantee_component?(<<c, rest::binary>>)
+       when c in 0x20..0x7E and c not in [?", ?,],
+       do: safe_grantee_component?(rest)
+
+  defp safe_grantee_component?(<<>>), do: true
+  defp safe_grantee_component?(_), do: false
 
   def build_cors_rule(rule) do
     mapping = [
@@ -209,14 +292,19 @@ defmodule ExAws.S3.Utils do
       |> Enum.flat_map(fn {key, property} ->
         rule
         |> Map.get(key, [])
-        |> Enum.map(&"<#{property}>#{&1}</#{property}>")
+        |> Enum.map(&"<#{property}>#{escape_xml_string(&1)}</#{property}>")
       end)
 
     properties =
       case Map.fetch(rule, :max_age_seconds) do
-        :error -> properties
-        {:ok, nil} -> properties
-        {:ok, value} -> ["<MaxAgeSeconds>#{value}</MaxAgeSeconds>" | properties]
+        :error ->
+          properties
+
+        {:ok, nil} ->
+          properties
+
+        {:ok, value} ->
+          ["<MaxAgeSeconds>#{escape_xml_string(value)}</MaxAgeSeconds>" | properties]
       end
 
     ["<CORSRule>", properties, "</CORSRule>"]
@@ -225,7 +313,7 @@ defmodule ExAws.S3.Utils do
 
   def build_lifecycle_rule(rule) do
     # ID
-    properties = ["<ID>", rule.id, "</ID>"]
+    properties = ["<ID>", escape_xml_string(rule.id), "</ID>"]
 
     # Status
     status_text = if rule.enabled, do: "Enabled", else: "Disabled"
@@ -235,7 +323,7 @@ defmodule ExAws.S3.Utils do
     filter_prefix =
       case Map.get(rule.filter, :prefix, nil) do
         prefix when is_binary(prefix) and prefix != "" ->
-          [["<Prefix>", prefix, "</Prefix>"]]
+          [["<Prefix>", escape_xml_string(prefix), "</Prefix>"]]
 
         _ ->
           []
@@ -243,7 +331,12 @@ defmodule ExAws.S3.Utils do
 
     filter_tags =
       Enum.map(Map.get(rule.filter, :tags, []), fn {key, value} ->
-        ["<Tag>", ["<Key>", key, "</Key>", "<Value>", value, "</Value>"], "</Tag>"]
+        [
+          "<Tag>",
+          ["<Key>", escape_xml_string(key), "</Key>"],
+          ["<Value>", escape_xml_string(value), "</Value>"],
+          "</Tag>"
+        ]
       end)
 
     filters =
@@ -260,7 +353,7 @@ defmodule ExAws.S3.Utils do
       transition: %{
         tag: "Transition",
         action_tags: fn %{storage: storage} ->
-          [["<StorageClass>", storage, "</StorageClass>"]]
+          [["<StorageClass>", escape_xml_string(storage), "</StorageClass>"]]
         end
       },
       expiration: %{
@@ -277,14 +370,20 @@ defmodule ExAws.S3.Utils do
       noncurrent_version_transition: %{
         tag: "NoncurrentVersionTransition",
         action_tags: fn %{storage: storage} ->
-          [["<StorageClass>", storage, "</StorageClass>"]]
+          [["<StorageClass>", escape_xml_string(storage), "</StorageClass>"]]
         end
       },
       noncurrent_version_expiration: %{
         tag: "NoncurrentVersionExpiration",
         action_tags: fn
           %{newer_noncurrent_versions: versions} ->
-            [["<NewerNoncurrentVersions>", "#{versions}", "</NewerNoncurrentVersions>"]]
+            [
+              [
+                "<NewerNoncurrentVersions>",
+                escape_xml_string(versions),
+                "</NewerNoncurrentVersions>"
+              ]
+            ]
 
           _ ->
             []
@@ -332,6 +431,30 @@ defmodule ExAws.S3.Utils do
        when action in [:noncurrent_version_transition, :noncurrent_version_expiration] and
               is_integer(days) and days >= 0 do
     ["<NoncurrentDays>", Integer.to_string(days), "</NoncurrentDays>"]
+  end
+
+  @doc """
+  Escapes a value for use as character data inside an XML element.
+
+  Every caller-supplied value that is placed between XML tags in a request body
+  must pass through this function. Without it, a value containing `<`, `&` or
+  similar is read by S3 as markup rather than text, which both breaks the request
+  and allows injection of additional elements.
+
+  See https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints
+  """
+  def escape_xml_string(value) do
+    value
+    |> to_string()
+    |> String.replace(["'", "\"", "&", "<", ">", "\r", "\n"], fn
+      "'" -> "&apos;"
+      "\"" -> "&quot;"
+      "&" -> "&amp;"
+      "<" -> "&lt;"
+      ">" -> "&gt;"
+      "\r" -> "&#13;"
+      "\n" -> "&#10;"
+    end)
   end
 
   def normalize_param(:version_id), do: "versionId"

@@ -2,6 +2,7 @@ defmodule ExAws.S3Test do
   # Setting async: false since we're modifying Application env
   use ExUnit.Case, async: false
   alias ExAws.{S3, Operation}
+  import SweetXml, only: [sigil_x: 2, xpath: 2]
 
   test "#list_objects" do
     res =
@@ -330,6 +331,286 @@ defmodule ExAws.S3Test do
                x_amz_bypass_governance_retention: "BypassGovernanceRetention",
                x_amz_expected_bucket_owner: "ExpectedBucketOwner"
              )
+  end
+
+  test "#put_bucket_lifecycle escapes caller-supplied values (GHSA-pcgv-phrm-r85v)" do
+    payload =
+      "frontend</Value></Tag></Filter>" <>
+        "<Expiration><Days>1</Days></Expiration>" <>
+        "<Filter><Tag><Key>team</Key><Value>frontend"
+
+    rule = %{id: "tenant-rule", enabled: true, filter: %{tags: [{"team", payload}]}, actions: %{}}
+
+    %Operation.S3{body: body, bucket: "bucket", http_method: :put, resource: "lifecycle"} =
+      S3.put_bucket_lifecycle("bucket", [rule])
+
+    refute body =~ "<Expiration>"
+
+    assert body ==
+             "<LifecycleConfiguration><Rule><Filter><Tag><Key>team</Key><Value>frontend&lt;/Value&gt;&lt;/Tag&gt;&lt;/Filter&gt;&lt;Expiration&gt;&lt;Days&gt;1&lt;/Days&gt;&lt;/Expiration&gt;&lt;Filter&gt;&lt;Tag&gt;&lt;Key&gt;team&lt;/Key&gt;&lt;Value&gt;frontend</Value></Tag></Filter><Status>Enabled</Status><ID>tenant-rule</ID></Rule></LifecycleConfiguration>"
+  end
+
+  describe "XML escaping of caller-supplied values" do
+    # A value containing every character the escaper handles. After escaping it must
+    # appear in the body as inert text, and an XML parser must read it back verbatim.
+    @raw ~s(a<b>&"c'd)
+    @escaped "a&lt;b&gt;&amp;&quot;c&apos;d"
+
+    defp texts(body, path), do: xpath(body, ~x"#{path}/text()"ls)
+
+    test "#put_bucket escapes the region" do
+      %Operation.S3{body: body} = S3.put_bucket("bucket", @raw)
+
+      refute body =~ "<b>"
+      assert body =~ "<LocationConstraint>#{@escaped}</LocationConstraint>"
+      assert texts(body, "//LocationConstraint") == [@raw]
+    end
+
+    test "#put_bucket_cors escapes rule values" do
+      rule = %{
+        allowed_origins: [@raw],
+        allowed_methods: [@raw],
+        allowed_headers: [@raw],
+        exposed_headers: [@raw],
+        max_age_seconds: @raw
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_cors("bucket", [rule])
+
+      refute body =~ "<b>"
+
+      assert body ==
+               "<CORSConfiguration><CORSRule>" <>
+                 "<MaxAgeSeconds>#{@escaped}</MaxAgeSeconds>" <>
+                 "<AllowedOrigin>#{@escaped}</AllowedOrigin>" <>
+                 "<AllowedMethod>#{@escaped}</AllowedMethod>" <>
+                 "<AllowedHeader>#{@escaped}</AllowedHeader>" <>
+                 "<ExposeHeader>#{@escaped}</ExposeHeader>" <>
+                 "</CORSRule></CORSConfiguration>"
+    end
+
+    test "#put_bucket_logging escapes target bucket and prefix" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_logging("bucket", target_bucket: @raw, target_prefix: @raw)
+
+      refute body =~ "<b>"
+      assert texts(body, "//LoggingEnabled/TargetBucket") == [@raw]
+      assert texts(body, "//LoggingEnabled/TargetPrefix") == [@raw]
+    end
+
+    test "#put_bucket_notification escapes ids, ARNs, events and filter rules" do
+      config = %{
+        topic_configurations: [
+          %{
+            id: @raw,
+            topic_arn: @raw,
+            events: [@raw],
+            filter: %{key: %{filter_rules: [%{name: @raw, value: @raw}]}}
+          }
+        ],
+        lambda_configurations: [%{id: @raw, lambda_function_arn: @raw, events: [@raw]}],
+        queue_configurations: [%{id: @raw, queue_arn: @raw, events: [@raw]}]
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_notification("bucket", config)
+
+      refute body =~ "<b>"
+      assert texts(body, "//TopicConfiguration/Id") == [@raw]
+      assert texts(body, "//TopicConfiguration/Topic") == [@raw]
+      assert texts(body, "//TopicConfiguration/Event") == [@raw]
+      assert texts(body, "//TopicConfiguration/Filter/S3Key/FilterRule/Name") == [@raw]
+      assert texts(body, "//TopicConfiguration/Filter/S3Key/FilterRule/Value") == [@raw]
+      assert texts(body, "//LambdaConfiguration/Id") == [@raw]
+      assert texts(body, "//LambdaConfiguration/LambdaFunctionArn") == [@raw]
+      assert texts(body, "//LambdaConfiguration/Event") == [@raw]
+      assert texts(body, "//QueueConfiguration/Id") == [@raw]
+      assert texts(body, "//QueueConfiguration/Queue") == [@raw]
+      assert texts(body, "//QueueConfiguration/Event") == [@raw]
+    end
+
+    test "#put_bucket_notification escapes simple-format prefix and suffix" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_notification("bucket",
+          topic_arn: @raw,
+          id: @raw,
+          events: [@raw],
+          prefix: @raw,
+          suffix: @raw
+        )
+
+      refute body =~ "<b>"
+      assert texts(body, "//TopicConfiguration/Topic") == [@raw]
+      assert texts(body, "//TopicConfiguration/Id") == [@raw]
+      assert texts(body, "//TopicConfiguration/Event") == [@raw]
+      assert texts(body, "//FilterRule/Value") == [@raw, @raw]
+    end
+
+    test "#put_bucket_replication escapes role, rule and destination values" do
+      config = %{
+        role: @raw,
+        rules: [
+          %{
+            id: @raw,
+            status: @raw,
+            filter: %{and: %{prefix: @raw, tags: [%{key: @raw, value: @raw}]}},
+            destination: %{
+              bucket: @raw,
+              storage_class: @raw,
+              account: @raw,
+              access_control_translation: %{owner: @raw}
+            }
+          },
+          %{filter: %{tag: %{key: @raw, value: @raw}}, destination: %{bucket: @raw}},
+          %{filter: %{prefix: @raw}, destination: %{bucket: @raw}}
+        ]
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_replication("bucket", config)
+
+      refute body =~ "<b>"
+      assert texts(body, "//ReplicationConfiguration/Role") == [@raw]
+      assert texts(body, "//Rule/ID") == [@raw]
+      assert texts(body, "//Rule/Status") == [@raw, "Enabled", "Enabled"]
+      assert texts(body, "//Rule/Filter/And/Prefix") == [@raw]
+      assert texts(body, "//Rule/Filter/And/Tag/Key") == [@raw]
+      assert texts(body, "//Rule/Filter/And/Tag/Value") == [@raw]
+      assert texts(body, "//Rule/Filter/Tag/Key") == [@raw]
+      assert texts(body, "//Rule/Filter/Tag/Value") == [@raw]
+      assert texts(body, "//Rule/Filter/Prefix") == [@raw]
+      assert texts(body, "//Destination/Bucket") == [@raw, @raw, @raw]
+      assert texts(body, "//Destination/StorageClass") == [@raw]
+      assert texts(body, "//Destination/Account") == [@raw]
+      assert texts(body, "//Destination/AccessControlTranslation/Owner") == [@raw]
+    end
+
+    test "#put_bucket_replication escapes simple-format values" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_replication("bucket",
+          role: @raw,
+          destination_bucket: @raw,
+          storage_class: @raw,
+          prefix: @raw
+        )
+
+      refute body =~ "<b>"
+      assert texts(body, "//ReplicationConfiguration/Role") == [@raw]
+      assert texts(body, "//Rule/Filter/Prefix") == [@raw]
+      assert texts(body, "//Destination/Bucket") == [@raw]
+      assert texts(body, "//Destination/StorageClass") == [@raw]
+    end
+
+    test "#put_bucket_tagging escapes keys and values" do
+      %Operation.S3{body: body} = S3.put_bucket_tagging("bucket", %{@raw => @raw})
+
+      assert body ==
+               ~s(<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet>) <>
+                 "<Tag><Key>#{@escaped}</Key><Value>#{@escaped}</Value></Tag>" <>
+                 "</TagSet></Tagging>"
+    end
+
+    test "#put_object_tagging escapes keys and values" do
+      %Operation.S3{body: body} = S3.put_object_tagging("bucket", "object", %{@raw => @raw})
+
+      assert body ==
+               ~s(<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet>) <>
+                 "<Tag><Key>#{@escaped}</Key><Value>#{@escaped}</Value></Tag>" <>
+                 "</TagSet></Tagging>"
+    end
+
+    test "#put_bucket_website escapes redirect-all values" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_website("bucket",
+          redirect_all_requests_to: %{host_name: @raw, protocol: @raw}
+        )
+
+      refute body =~ "<b>"
+      assert texts(body, "//RedirectAllRequestsTo/HostName") == [@raw]
+      assert texts(body, "//RedirectAllRequestsTo/Protocol") == [@raw]
+    end
+
+    test "#put_bucket_website escapes documents and routing rules" do
+      config = %{
+        index_document: @raw,
+        error_document: @raw,
+        routing_rules: [
+          %{
+            condition: %{key_prefix_equals: @raw},
+            redirect: %{
+              protocol: @raw,
+              host_name: @raw,
+              replace_key_prefix_with: @raw,
+              replace_key_with: @raw,
+              http_redirect_code: @raw
+            }
+          },
+          %{condition: %{http_error_code_returned_equals: @raw}, redirect: %{}}
+        ]
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_website("bucket", config)
+
+      refute body =~ "<b>"
+      assert texts(body, "//IndexDocument/Suffix") == [@raw]
+      assert texts(body, "//ErrorDocument/Key") == [@raw]
+      assert texts(body, "//RoutingRule/Condition/KeyPrefixEquals") == [@raw]
+      assert texts(body, "//RoutingRule/Condition/HttpErrorCodeReturnedEquals") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/Protocol") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/HostName") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/ReplaceKeyPrefixWith") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/ReplaceKeyWith") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/HttpRedirectCode") == [@raw]
+    end
+
+    test "#put_bucket_logging does not let a target bucket inject a node (GHSA-cf93-7gwh-6w98)" do
+      payload = "tenant-logs</TargetBucket><TargetBucket>attacker-exfil-bucket"
+
+      %Operation.S3{body: body} = S3.put_bucket_logging("bucket", target_bucket: payload)
+
+      assert texts(body, "//TargetBucket") == [payload]
+      refute "attacker-exfil-bucket" in texts(body, "//TargetBucket")
+    end
+
+    test "tagging does not let a tag value inject a tag (GHSA-979q-5hj9-vvvv)" do
+      payload = "blue</Value></Tag><Tag><Key>owner</Key><Value>admin"
+
+      for %Operation.S3{body: body} <- [
+            S3.put_object_tagging("bucket", "object", [{"customer", payload}]),
+            S3.put_bucket_tagging("bucket", [{"customer", payload}])
+          ] do
+        assert texts(body, "//TagSet/Tag/Key") == ["customer"]
+        assert texts(body, "//TagSet/Tag/Value") == [payload]
+      end
+    end
+
+    test "#delete_multiple_objects escapes version ids" do
+      %Operation.S3{body: body} = S3.delete_multiple_objects("bucket", [{"key", @raw}])
+
+      refute body =~ "<b>"
+      assert body =~ "<VersionId>#{@escaped}</VersionId>"
+      assert texts(body, "//Object/VersionId") == [@raw]
+    end
+
+    test "#delete_multiple_objects does not let a version id inject objects (GHSA-mwxg-gfj8-x32v)" do
+      payload =
+        "v1</VersionId></Object>" <>
+          "<Object><Key>important-file</Key></Object>" <>
+          "<Object><Key>x</Key><VersionId>v2"
+
+      %Operation.S3{body: body} =
+        S3.delete_multiple_objects("bucket", [{"my-own-file", payload}])
+
+      assert texts(body, "//Delete/Object/Key") == ["my-own-file"]
+      assert texts(body, "//Delete/Object/VersionId") == [payload]
+    end
+
+    test "#complete_multipart_upload escapes etags" do
+      %Operation.S3{body: body} =
+        S3.complete_multipart_upload("bucket", "object", "upload-id", [{1, @raw}])
+
+      refute body =~ "<b>"
+      assert body =~ "<ETag>#{@escaped}</ETag>"
+      assert texts(body, "//Part/ETag") == [@raw]
+    end
   end
 
   test "#delete_multiple_objects" do
@@ -1143,6 +1424,33 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#put_object_acl with explicit grants" do
+    res = S3.put_object_acl("bucket", "object", grant_read: [email: "foo@bar.com", id: "fake_id"])
+
+    assert res.headers == %{"x-amz-grant-read" => ~s(emailAddress="foo@bar.com", id="fake_id")}
+    assert res.resource == "acl"
+    assert res.http_method == :put
+  end
+
+  test "grantee injection is rejected by every operation that accepts grants" do
+    injected = [
+      email: ~s(victim@example.com", uri="http://acs.amazonaws.com/groups/global/AllUsers)
+    ]
+
+    operations = [
+      fn -> S3.put_object_acl("bucket", "object", grant_read: injected) end,
+      fn -> S3.put_bucket_acl("bucket", grant_full_control: injected) end,
+      fn -> S3.put_bucket("bucket", "us-east-1", grant_write: injected) end,
+      fn -> S3.put_object("bucket", "object", "body", grant_read_acp: injected) end,
+      fn -> S3.put_object_copy("dest", "object", "src", "object", grant_write_acp: injected) end,
+      fn -> S3.initiate_multipart_upload("bucket", "object", grant_full_control: injected) end
+    ]
+
+    for operation <- operations do
+      assert_raise ArgumentError, ~r/invalid S3 grantee/, operation
+    end
+  end
+
   describe "bucket names used as the request host" do
     @malicious_bucket "attacker.example/x?"
 
@@ -1346,4 +1654,60 @@ defmodule ExAws.S3Test do
   end
 
   defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
+
+  describe "HTTP header injection protection" do
+    @crlf_value "legit\r\nX-Injected-By-Attacker: pwned\r\nX-Smuggled: yes"
+
+    test "#put_object rejects CR/LF in metadata values" do
+      assert_raise ArgumentError, ~r/x-amz-meta-comment/, fn ->
+        S3.put_object("bucket", "object", "data", meta: [{"comment", @crlf_value}])
+      end
+    end
+
+    test "#put_object rejects CR/LF in metadata keys" do
+      assert_raise ArgumentError, ~r/invalid HTTP header name/, fn ->
+        S3.put_object("bucket", "object", "data", meta: [{"comment\r\nX-Evil: 1", "value"}])
+      end
+    end
+
+    test "#put_object rejects CR/LF in other header options" do
+      assert_raise ArgumentError, ~r/content-disposition/, fn ->
+        S3.put_object("bucket", "object", "data",
+          content_disposition: "attachment; filename=\"a.txt\"\r\nX-Evil: 1"
+        )
+      end
+    end
+
+    test "#put_object_copy rejects CR/LF in metadata" do
+      assert_raise ArgumentError, fn ->
+        S3.put_object_copy("dest", "object", "src", "object", meta: [comment: @crlf_value])
+      end
+    end
+
+    test "#initiate_multipart_upload rejects CR/LF in metadata" do
+      assert_raise ArgumentError, fn ->
+        S3.initiate_multipart_upload("bucket", "object", meta: [comment: @crlf_value])
+      end
+    end
+
+    test "caller-supplied headers are validated too" do
+      assert_raise ArgumentError, fn ->
+        S3.list_objects("bucket", headers: %{"x-amz-request-payer" => @crlf_value})
+      end
+
+      assert_raise ArgumentError, fn ->
+        S3.get_object_acl("bucket", "object", [{"x-amz-request-payer", @crlf_value}])
+      end
+    end
+
+    test "ordinary metadata is still accepted" do
+      %Operation.S3{headers: headers} =
+        S3.put_object("bucket", "object", "data",
+          meta: [{"comment", "tabs\tand spaces and ünïcödé"}, {:owner_id, 42}]
+        )
+
+      assert headers["x-amz-meta-comment"] == "tabs\tand spaces and ünïcödé"
+      assert headers["x-amz-meta-owner_id"] == 42
+    end
+  end
 end
