@@ -840,7 +840,8 @@ defmodule ExAws.S3Test do
       body:
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
       bucket: "bucket",
-      path: "/?delete",
+      path: "/",
+      resource: "delete",
       headers: %{"content-md5" => "G9Pq8w8AQUesREJndxKbKw=="},
       http_method: :post
     }
@@ -860,7 +861,8 @@ defmodule ExAws.S3Test do
       body:
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
       bucket: "bucket",
-      path: "/?delete",
+      path: "/",
+      resource: "delete",
       headers: %{"x-amz-checksum-sha1" => "1uLbLBmwtufR1/csrQPCAONFeKU="},
       http_method: :post
     }
@@ -882,7 +884,8 @@ defmodule ExAws.S3Test do
       body:
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete><Object><Key>foo</Key></Object><Object><Key>bar</Key><VersionId>v1</VersionId></Object><Object><Key>special characters: &apos;&quot;&amp;&lt;&gt;&#13;&#10;</Key></Object></Delete>",
       bucket: "bucket",
-      path: "/?delete",
+      path: "/",
+      resource: "delete",
       headers: %{"x-amz-checksum-sha256" => "Hsce+MZp64Uy8CwyResJ3y13YGw6jDAAdVGFmFPKPSs="},
       http_method: :post
     }

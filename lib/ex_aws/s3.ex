@@ -1249,7 +1249,8 @@ defmodule ExAws.S3 do
 
     body_binary = body |> IO.iodata_to_binary()
 
-    request(:post, bucket, "/?delete",
+    request(:post, bucket, "/",
+      resource: "delete",
       body: body_binary,
       headers: calculate_content_header(body_binary)
     )
