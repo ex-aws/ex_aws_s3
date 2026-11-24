@@ -138,5 +138,71 @@ defmodule ExAws.S3.ImplTest do
       assert rule |> Utils.build_lifecycle_rule() ==
                "<Rule><AbortIncompleteMultipartUpload><DaysAfterInitiation>0</DaysAfterInitiation></AbortIncompleteMultipartUpload><NoncurrentVersionExpiration><NoncurrentDays>0</NoncurrentDays></NoncurrentVersionExpiration><NoncurrentVersionTransition><NoncurrentDays>0</NoncurrentDays><StorageClass></StorageClass></NoncurrentVersionTransition><Expiration><Days>0</Days><ExpiredObjectDeleteMarker>true</ExpiredObjectDeleteMarker></Expiration><Transition><Days>0</Days><StorageClass></StorageClass></Transition><Filter><Prefix>prefix/</Prefix></Filter><Status>Enabled</Status><ID>123</ID></Rule>"
     end
+
+    test "escapes XML metacharacters in caller-supplied values" do
+      rule = %{
+        id: "id <&> \"quoted\" 'single'",
+        enabled: true,
+        filter: %{
+          prefix: "a&b/<c>/",
+          tags: %{"k<ey" => "v&alue"}
+        },
+        actions: %{
+          transition: %{
+            trigger: {:days, 2},
+            storage: "GLACIER</StorageClass><Days>1</Days>"
+          },
+          noncurrent_version_transition: %{
+            trigger: {:days, 2},
+            storage: "<x>"
+          },
+          noncurrent_version_expiration: %{
+            trigger: {:days, 2},
+            newer_noncurrent_versions: "1</NewerNoncurrentVersions><Foo>"
+          }
+        }
+      }
+
+      assert Utils.build_lifecycle_rule(rule) ==
+               Enum.join([
+                 "<Rule>",
+                 "<NoncurrentVersionExpiration><NoncurrentDays>2</NoncurrentDays><NewerNoncurrentVersions>1&lt;/NewerNoncurrentVersions&gt;&lt;Foo&gt;</NewerNoncurrentVersions></NoncurrentVersionExpiration>",
+                 "<NoncurrentVersionTransition><NoncurrentDays>2</NoncurrentDays><StorageClass>&lt;x&gt;</StorageClass></NoncurrentVersionTransition>",
+                 "<Transition><Days>2</Days><StorageClass>GLACIER&lt;/StorageClass&gt;&lt;Days&gt;1&lt;/Days&gt;</StorageClass></Transition>",
+                 "<Filter><And><Prefix>a&amp;b/&lt;c&gt;/</Prefix><Tag><Key>k&lt;ey</Key><Value>v&amp;alue</Value></Tag></And></Filter>",
+                 "<Status>Enabled</Status>",
+                 "<ID>id &lt;&amp;&gt; &quot;quoted&quot; &apos;single&apos;</ID>",
+                 "</Rule>"
+               ])
+    end
+
+    test "does not let a tag value inject a lifecycle action (GHSA-pcgv-phrm-r85v)" do
+      payload =
+        "frontend</Value></Tag></Filter>" <>
+          "<Expiration><Days>1</Days></Expiration>" <>
+          "<Filter><Tag><Key>team</Key><Value>frontend"
+
+      rule = %{
+        id: "tenant-rule",
+        enabled: true,
+        filter: %{tags: [{"team", payload}]},
+        actions: %{}
+      }
+
+      xml = Utils.build_lifecycle_rule(rule)
+
+      refute xml =~ "<Expiration>"
+
+      assert xml ==
+               "<Rule><Filter><Tag><Key>team</Key><Value>frontend&lt;/Value&gt;&lt;/Tag&gt;&lt;/Filter&gt;&lt;Expiration&gt;&lt;Days&gt;1&lt;/Days&gt;&lt;/Expiration&gt;&lt;Filter&gt;&lt;Tag&gt;&lt;Key&gt;team&lt;/Key&gt;&lt;Value&gt;frontend</Value></Tag></Filter><Status>Enabled</Status><ID>tenant-rule</ID></Rule>"
+    end
+  end
+
+  test "escape_xml_string/1" do
+    assert Utils.escape_xml_string("a'b\"c&d<e>f\rg\nh") ==
+             "a&apos;b&quot;c&amp;d&lt;e&gt;f&#13;g&#10;h"
+
+    assert Utils.escape_xml_string("plain") == "plain"
+    assert Utils.escape_xml_string(10) == "10"
   end
 end

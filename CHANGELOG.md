@@ -1,5 +1,8 @@
 # Changelog
 
+Unreleased
+- Security: XML-escape all caller-supplied values that are placed inside XML request bodies. Previously these were interpolated verbatim, so a value containing XML metacharacters could inject additional elements into the request. Fixes GHSA-pcgv-phrm-r85v (`put_bucket_lifecycle/2`), GHSA-cf93-7gwh-6w98 (bucket logging, notification, replication and website configuration), GHSA-979q-5hj9-vvvv (bucket and object tagging) and GHSA-mwxg-gfj8-x32v (version ids in `delete_multiple_objects/3`). The same fix is applied to `put_bucket/3` (region), `put_bucket_cors/2`, `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_replication/2`, `put_bucket_tagging/2`, `put_object_tagging/4`, `put_bucket_website/2`, `post_object_restore/4`, `delete_multiple_objects/3` (version ids) and `complete_multipart_upload/4` (ETags).
+
 v2.5.9 (2025-12-09)
 - Implement bucket configuration operations `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_request_payment/2`, and `put_bucket_website/2`.
 - Fix `put_object` typespec
