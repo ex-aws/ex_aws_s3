@@ -509,8 +509,8 @@ defmodule ExAws.S3 do
     body = """
     <BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
       <LoggingEnabled>
-        <TargetBucket>#{target_bucket}</TargetBucket>
-        <TargetPrefix>#{target_prefix}</TargetPrefix>
+        <TargetBucket>#{escape_xml_string(target_bucket)}</TargetBucket>
+        <TargetPrefix>#{escape_xml_string(target_prefix)}</TargetPrefix>
       </LoggingEnabled>
     </BucketLoggingStatus>
     """
@@ -609,14 +609,14 @@ defmodule ExAws.S3 do
     events = Map.get(config, :events, [])
     filter = Map.get(config, :filter)
 
-    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
-    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    id_xml = if id != "", do: "<Id>#{escape_xml_string(id)}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{escape_xml_string(&1)}</Event>")
     filter_xml = if filter, do: build_filter_xml(filter), else: ""
 
     """
     <TopicConfiguration>
     #{id_xml}
-    <Topic>#{topic_arn}</Topic>
+    <Topic>#{escape_xml_string(topic_arn)}</Topic>
     #{events_xml}
     #{filter_xml}
     </TopicConfiguration>
@@ -629,14 +629,14 @@ defmodule ExAws.S3 do
     events = Map.get(config, :events, [])
     filter = Map.get(config, :filter)
 
-    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
-    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    id_xml = if id != "", do: "<Id>#{escape_xml_string(id)}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{escape_xml_string(&1)}</Event>")
     filter_xml = if filter, do: build_filter_xml(filter), else: ""
 
     """
     <LambdaConfiguration>
     #{id_xml}
-    <LambdaFunctionArn>#{lambda_arn}</LambdaFunctionArn>
+    <LambdaFunctionArn>#{escape_xml_string(lambda_arn)}</LambdaFunctionArn>
     #{events_xml}
     #{filter_xml}
     </LambdaConfiguration>
@@ -649,14 +649,14 @@ defmodule ExAws.S3 do
     events = Map.get(config, :events, [])
     filter = Map.get(config, :filter)
 
-    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
-    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    id_xml = if id != "", do: "<Id>#{escape_xml_string(id)}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{escape_xml_string(&1)}</Event>")
     filter_xml = if filter, do: build_filter_xml(filter), else: ""
 
     """
     <QueueConfiguration>
     #{id_xml}
-    <Queue>#{queue_arn}</Queue>
+    <Queue>#{escape_xml_string(queue_arn)}</Queue>
     #{events_xml}
     #{filter_xml}
     </QueueConfiguration>
@@ -668,7 +668,7 @@ defmodule ExAws.S3 do
 
     rules_xml =
       Enum.map(filter_rules, fn rule ->
-        "<FilterRule><Name>#{rule.name}</Name><Value>#{rule.value}</Value></FilterRule>"
+        "<FilterRule><Name>#{escape_xml_string(rule.name)}</Name><Value>#{escape_xml_string(rule.value)}</Value></FilterRule>"
       end)
 
     """
@@ -807,7 +807,7 @@ defmodule ExAws.S3 do
 
     body = """
     <ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <Role>#{role}</Role>
+      <Role>#{escape_xml_string(role)}</Role>
       #{rules_xml}
     </ReplicationConfiguration>
     """
@@ -823,31 +823,32 @@ defmodule ExAws.S3 do
     filter = Map.get(rule, :filter)
     destination = Map.fetch!(rule, :destination)
 
-    id_xml = if id != "", do: "<ID>#{id}</ID>", else: ""
+    id_xml = if id != "", do: "<ID>#{escape_xml_string(id)}</ID>", else: ""
 
     filter_xml =
       if filter do
         cond do
           Map.has_key?(filter, :prefix) ->
-            "<Filter><Prefix>#{filter.prefix}</Prefix></Filter>"
+            "<Filter><Prefix>#{escape_xml_string(filter.prefix)}</Prefix></Filter>"
 
           Map.has_key?(filter, :tag) ->
             tag = filter.tag
-            "<Filter><Tag><Key>#{tag.key}</Key><Value>#{tag.value}</Value></Tag></Filter>"
+
+            "<Filter><Tag><Key>#{escape_xml_string(tag.key)}</Key><Value>#{escape_xml_string(tag.value)}</Value></Tag></Filter>"
 
           Map.has_key?(filter, :and) ->
             and_filter = filter.and
 
             prefix_xml =
               if Map.has_key?(and_filter, :prefix),
-                do: "<Prefix>#{and_filter.prefix}</Prefix>",
+                do: "<Prefix>#{escape_xml_string(and_filter.prefix)}</Prefix>",
                 else: ""
 
             tags_xml =
               and_filter
               |> Map.get(:tags, [])
               |> Enum.map(fn tag ->
-                "<Tag><Key>#{tag.key}</Key><Value>#{tag.value}</Value></Tag>"
+                "<Tag><Key>#{escape_xml_string(tag.key)}</Key><Value>#{escape_xml_string(tag.value)}</Value></Tag>"
               end)
 
             "<Filter><And>#{prefix_xml}#{tags_xml}</And></Filter>"
@@ -864,7 +865,7 @@ defmodule ExAws.S3 do
     """
     <Rule>
       #{id_xml}
-      <Status>#{status}</Status>
+      <Status>#{escape_xml_string(status)}</Status>
       #{filter_xml}
       #{destination_xml}
     </Rule>
@@ -877,20 +878,25 @@ defmodule ExAws.S3 do
     account = Map.get(destination, :account)
     access_control_translation = Map.get(destination, :access_control_translation)
 
-    storage_xml = if storage_class, do: "<StorageClass>#{storage_class}</StorageClass>", else: ""
-    account_xml = if account, do: "<Account>#{account}</Account>", else: ""
+    storage_xml =
+      if storage_class,
+        do: "<StorageClass>#{escape_xml_string(storage_class)}</StorageClass>",
+        else: ""
+
+    account_xml = if account, do: "<Account>#{escape_xml_string(account)}</Account>", else: ""
 
     access_control_xml =
       if access_control_translation do
         owner = Map.get(access_control_translation, :owner, "Destination")
-        "<AccessControlTranslation><Owner>#{owner}</Owner></AccessControlTranslation>"
+
+        "<AccessControlTranslation><Owner>#{escape_xml_string(owner)}</Owner></AccessControlTranslation>"
       else
         ""
       end
 
     """
     <Destination>
-      <Bucket>#{bucket}</Bucket>
+      <Bucket>#{escape_xml_string(bucket)}</Bucket>
       #{storage_xml}
       #{account_xml}
       #{access_control_xml}
@@ -916,7 +922,13 @@ defmodule ExAws.S3 do
       tags
       |> Enum.map(fn
         {key, value} ->
-          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+          [
+            "<Tag><Key>",
+            escape_xml_string(key),
+            "</Key><Value>",
+            escape_xml_string(value),
+            "</Value></Tag>"
+          ]
       end)
 
     body = [
@@ -1033,8 +1045,8 @@ defmodule ExAws.S3 do
 
           """
           <RedirectAllRequestsTo>
-            <HostName>#{host_name}</HostName>
-            <Protocol>#{protocol}</Protocol>
+            <HostName>#{escape_xml_string(host_name)}</HostName>
+            <Protocol>#{escape_xml_string(protocol)}</Protocol>
           </RedirectAllRequestsTo>
           """
 
@@ -1043,11 +1055,12 @@ defmodule ExAws.S3 do
           error_doc = Map.get(config, :error_document)
           routing_rules = Map.get(config, :routing_rules, [])
 
-          index_xml = "<IndexDocument><Suffix>#{index_doc}</Suffix></IndexDocument>"
+          index_xml =
+            "<IndexDocument><Suffix>#{escape_xml_string(index_doc)}</Suffix></IndexDocument>"
 
           error_xml =
             if error_doc do
-              "<ErrorDocument><Key>#{error_doc}</Key></ErrorDocument>"
+              "<ErrorDocument><Key>#{escape_xml_string(error_doc)}</Key></ErrorDocument>"
             else
               ""
             end
@@ -1081,10 +1094,10 @@ defmodule ExAws.S3 do
     condition_xml =
       cond do
         Map.has_key?(condition, :key_prefix_equals) ->
-          "<Condition><KeyPrefixEquals>#{condition[:key_prefix_equals]}</KeyPrefixEquals></Condition>"
+          "<Condition><KeyPrefixEquals>#{escape_xml_string(condition[:key_prefix_equals])}</KeyPrefixEquals></Condition>"
 
         Map.has_key?(condition, :http_error_code_returned_equals) ->
-          "<Condition><HttpErrorCodeReturnedEquals>#{condition[:http_error_code_returned_equals]}</HttpErrorCodeReturnedEquals></Condition>"
+          "<Condition><HttpErrorCodeReturnedEquals>#{escape_xml_string(condition[:http_error_code_returned_equals])}</HttpErrorCodeReturnedEquals></Condition>"
 
         true ->
           ""
@@ -1094,31 +1107,35 @@ defmodule ExAws.S3 do
 
     redirect_parts =
       if Map.has_key?(redirect, :protocol),
-        do: ["<Protocol>#{redirect[:protocol]}</Protocol>" | redirect_parts],
+        do: ["<Protocol>#{escape_xml_string(redirect[:protocol])}</Protocol>" | redirect_parts],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :host_name),
-        do: ["<HostName>#{redirect[:host_name]}</HostName>" | redirect_parts],
+        do: ["<HostName>#{escape_xml_string(redirect[:host_name])}</HostName>" | redirect_parts],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :replace_key_prefix_with),
         do: [
-          "<ReplaceKeyPrefixWith>#{redirect[:replace_key_prefix_with]}</ReplaceKeyPrefixWith>"
+          "<ReplaceKeyPrefixWith>#{escape_xml_string(redirect[:replace_key_prefix_with])}</ReplaceKeyPrefixWith>"
           | redirect_parts
         ],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :replace_key_with),
-        do: ["<ReplaceKeyWith>#{redirect[:replace_key_with]}</ReplaceKeyWith>" | redirect_parts],
+        do: [
+          "<ReplaceKeyWith>#{escape_xml_string(redirect[:replace_key_with])}</ReplaceKeyWith>"
+          | redirect_parts
+        ],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :http_redirect_code),
         do: [
-          "<HttpRedirectCode>#{redirect[:http_redirect_code]}</HttpRedirectCode>" | redirect_parts
+          "<HttpRedirectCode>#{escape_xml_string(redirect[:http_redirect_code])}</HttpRedirectCode>"
+          | redirect_parts
         ],
         else: redirect_parts
 
@@ -1206,7 +1223,7 @@ defmodule ExAws.S3 do
             "<Object><Key>",
             escape_xml_string(key),
             "</Key><VersionId>",
-            version,
+            escape_xml_string(version),
             "</VersionId></Object>"
           ]
 
@@ -1561,7 +1578,7 @@ defmodule ExAws.S3 do
 
     body = """
     <RestoreRequest xmlns="http://s3.amazonaws.com/doc/2006-3-01">
-      <Days>#{number_of_days}</Days>
+      <Days>#{escape_xml_string(number_of_days)}</Days>
     </RestoreRequest>
     """
 
@@ -1628,7 +1645,13 @@ defmodule ExAws.S3 do
     tags_xml =
       Enum.map(tags, fn
         {key, value} ->
-          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+          [
+            "<Tag><Key>",
+            escape_xml_string(key),
+            "</Key><Value>",
+            escape_xml_string(value),
+            "</Value></Tag>"
+          ]
       end)
 
     body = [
@@ -1916,7 +1939,7 @@ defmodule ExAws.S3 do
           Integer.to_string(part_number),
           "</PartNumber>",
           "<ETag>",
-          etag,
+          escape_xml_string(etag),
           "</ETag>",
           "</Part>"
         ]
@@ -2118,7 +2141,7 @@ defmodule ExAws.S3 do
   defp put_bucket_body(region) do
     """
     <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <LocationConstraint>#{region}</LocationConstraint>
+      <LocationConstraint>#{escape_xml_string(region)}</LocationConstraint>
     </CreateBucketConfiguration>
     """
   end
@@ -2160,17 +2183,5 @@ defmodule ExAws.S3 do
 
   defp put_accelerate_host(config) do
     Map.put(config, :host, "s3-accelerate.amazonaws.com")
-  end
-
-  defp escape_xml_string(value) do
-    String.replace(value, ["'", "\"", "&", "<", ">", "\r", "\n"], fn
-      "'" -> "&apos;"
-      "\"" -> "&quot;"
-      "&" -> "&amp;"
-      "<" -> "&lt;"
-      ">" -> "&gt;"
-      "\r" -> "&#13;"
-      "\n" -> "&#10;"
-    end)
   end
 end
