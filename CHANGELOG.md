@@ -1,6 +1,6 @@
 # Changelog
 
-Unreleased
+v2.6.0 (2026-11-24)
 - Security: XML-escape all caller-supplied values that are placed inside XML request bodies. Previously these were interpolated verbatim, so a value containing XML metacharacters could inject additional elements into the request. Fixes GHSA-pcgv-phrm-r85v (`put_bucket_lifecycle/2`), GHSA-cf93-7gwh-6w98 (bucket logging, notification, replication and website configuration), GHSA-979q-5hj9-vvvv (bucket and object tagging) and GHSA-mwxg-gfj8-x32v (version ids in `delete_multiple_objects/3`). The same fix is applied to `put_bucket/3` (region), `put_bucket_cors/2`, `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_replication/2`, `put_bucket_tagging/2`, `put_object_tagging/4`, `put_bucket_website/2`, `post_object_restore/4`, `delete_multiple_objects/3` (version ids) and `complete_multipart_upload/4` (ETags).
 - Security: reject grantee identifiers containing `"`, `,`, control or non-ASCII characters in the `grant_read`, `grant_write`, `grant_read_acp`, `grant_write_acp` and `grant_full_control` options. An untrusted grantee value could previously inject additional grantees (including the `AllUsers` group) into the `x-amz-grant-*` headers (GHSA-6fg2-v8g4-vfg2).
 - Security: reject header names and values containing control characters (such as CR/LF) in every request builder. Previously `:meta` keys/values and other header options were interpolated into `x-amz-meta-*` and other request headers verbatim, allowing HTTP header injection when they were derived from untrusted input (GHSA-5887-vcfr-5ff8).
