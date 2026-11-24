@@ -1777,24 +1777,66 @@ defmodule ExAws.S3 do
       |> Map.delete(:encryption)
       |> put_object_headers
 
-    encoded_src_object =
-      src_object
-      |> String.split("/")
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.map(fn str -> URI.encode(str, &URI.char_unreserved?/1) end)
-      |> Enum.join("/")
-
     headers =
       regular_headers
       |> Map.merge(amz_headers)
       |> Map.merge(source_encryption)
       |> Map.merge(destination_encryption)
-      |> Map.put(
-        "x-amz-copy-source",
-        "/#{URI.encode(src_bucket, &URI.char_unreserved?/1)}/#{encoded_src_object}"
-      )
+      |> Map.put("x-amz-copy-source", copy_source_header(src_bucket, src_object))
 
     request(:put, dest_bucket, dest_object, headers: headers)
+  end
+
+  # Builds the value of the `x-amz-copy-source` header. The bucket and each
+  # path segment of the object key are percent-encoded so that reserved
+  # characters (including CR/LF) cannot alter the meaning of the header or
+  # inject additional headers into the request.
+  #
+  # The key is otherwise passed through as given: S3 keys are literal, so
+  # `a//b` and `dir/` name different objects from `a/b` and `dir`, and empty
+  # segments must be kept. A single leading `/` is dropped because callers have
+  # long been able to pass `/key` for `key`.
+  defp copy_source_header(src_bucket, src_object) do
+    encoded_src_object =
+      src_object
+      |> to_string()
+      |> strip_leading_slash()
+      |> String.split("/")
+      |> Enum.map_join("/", &encode_copy_source_segment/1)
+
+    "/#{encode_copy_source_segment(to_string(src_bucket))}/#{encoded_src_object}"
+  end
+
+  defp strip_leading_slash("/" <> rest), do: rest
+  defp strip_leading_slash(key), do: key
+
+  # Percent-encodes the bucket or one segment of the object key for the
+  # `x-amz-copy-source` header. `.` is an unreserved character, so `.` and `..`
+  # segments would otherwise be sent as they are; S3 treats them as literal key
+  # names, but encoding the dots keeps anything between the client and S3 from
+  # reading them as path traversal.
+  #
+  # The encoding itself is `ExAws.Request.Url.encode_path_segment/1`, which is
+  # shared by the ex_aws service libraries: everything outside the RFC 3986
+  # unreserved set is encoded, including "/", "?", "#" and ":", and so are the
+  # dot segments "." and "..".
+  #
+  # ex_aws releases that predate that function are still supported, so it is
+  # called only when it exists and the same encoding is done here otherwise.
+  # Once the ex_aws requirement in mix.exs is raised to a release that has it,
+  # the fallback (and `apply/3`, which is only there to keep the compiler from
+  # warning about a function older releases lack) can go.
+  defp encode_copy_source_segment(segment) do
+    if Code.ensure_loaded?(ExAws.Request.Url) and
+         function_exported?(ExAws.Request.Url, :encode_path_segment, 1) do
+      apply(ExAws.Request.Url, :encode_path_segment, [segment])
+    else
+      case to_string(segment) do
+        "." -> "%2E"
+        ".." -> "%2E%2E"
+        string -> URI.encode(string, &URI.char_unreserved?/1)
+      end
+    end
   end
 
   @type initiate_multipart_upload_opt ::
@@ -1915,7 +1957,7 @@ defmodule ExAws.S3 do
     headers =
       headers
       |> Map.put("x-amz-copy-source-range", "bytes=#{first}-#{last}")
-      |> Map.put("x-amz-copy-source", "/#{src_bucket}/#{src_object}")
+      |> Map.put("x-amz-copy-source", copy_source_header(src_bucket, src_object))
 
     params = %{"uploadId" => upload_id, "partNumber" => part_number}
 

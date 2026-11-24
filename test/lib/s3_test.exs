@@ -238,6 +238,103 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#put_object_copy percent encodes reserved characters" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{"x-amz-copy-source" => "/src-bucket/evil%20key%3Fx%3D1%26y%3D2"},
+      path: "dest-object",
+      http_method: :put
+    }
+
+    assert expected ==
+             S3.put_object_copy("dest-bucket", "dest-object", "src-bucket", "evil key?x=1&y=2")
+  end
+
+  test "#put_object_copy percent encodes CR/LF (no header injection)" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{"x-amz-copy-source" => "/src-bucket/a%0D%0Ax-injected%3A%20pwned"},
+      path: "dest-object",
+      http_method: :put
+    }
+
+    assert expected ==
+             S3.put_object_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "a\r\nx-injected: pwned"
+             )
+  end
+
+  describe "x-amz-copy-source key handling" do
+    defp put_copy_source(src_bucket, src_object) do
+      S3.put_object_copy("dest-bucket", "dest-object", src_bucket, src_object).headers[
+        "x-amz-copy-source"
+      ]
+    end
+
+    defp part_copy_source(src_bucket, src_object) do
+      S3.upload_part_copy(
+        "dest-bucket",
+        "dest-object",
+        src_bucket,
+        src_object,
+        "upload-id",
+        1,
+        1..9
+      ).headers["x-amz-copy-source"]
+    end
+
+    test "empty key segments are kept" do
+      for {key, expected} <- [
+            {"a//b", "/src-bucket/a//b"},
+            {"dir/", "/src-bucket/dir/"},
+            {"a/b//", "/src-bucket/a/b//"}
+          ] do
+        assert put_copy_source("src-bucket", key) == expected
+        assert part_copy_source("src-bucket", key) == expected
+      end
+    end
+
+    test "only one leading slash is dropped" do
+      for {key, expected} <- [
+            {"/admin/secret", "/src-bucket/admin/secret"},
+            {"//admin/secret", "/src-bucket//admin/secret"}
+          ] do
+        assert put_copy_source("src-bucket", key) == expected
+        assert part_copy_source("src-bucket", key) == expected
+      end
+    end
+
+    test "dot segments are percent encoded" do
+      for {key, expected} <- [
+            {"a/../b", "/src-bucket/a/%2E%2E/b"},
+            {"../other-bucket/key", "/src-bucket/%2E%2E/other-bucket/key"},
+            {"./a/.", "/src-bucket/%2E/a/%2E"},
+            {"a/.hidden/v1.2..txt", "/src-bucket/a/.hidden/v1.2..txt"}
+          ] do
+        assert put_copy_source("src-bucket", key) == expected
+        assert part_copy_source("src-bucket", key) == expected
+      end
+
+      assert part_copy_source("..", "key") == "/%2E%2E/key"
+    end
+
+    test "the bucket cannot add path segments" do
+      assert put_copy_source("src-bucket/other", "key") == "/src-bucket%2Fother/key"
+      assert part_copy_source("src-bucket/other", "key") == "/src-bucket%2Fother/key"
+    end
+
+    test "charlist and atom arguments are still accepted" do
+      assert part_copy_source(~c"src-bucket", ~c"foo/hello friend.txt") ==
+               "/src-bucket/foo/hello%20friend.txt"
+
+      assert part_copy_source(:src_bucket, "key") == "/src_bucket/key"
+      assert put_copy_source(~c"src-bucket", ~c"key") == "/src-bucket/key"
+    end
+  end
+
   test "#complete_multipart_upload" do
     expected = %Operation.S3{
       body:
@@ -280,6 +377,131 @@ defmodule ExAws.S3Test do
                1,
                1..9,
                source_encryption: [customer_algorithm: "md5"]
+             )
+  end
+
+  test "#upload_part_copy utf8" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{
+        "x-amz-copy-source" => "/src-bucket/foo/%C3%BC.txt",
+        "x-amz-copy-source-range" => "bytes=1-9"
+      },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "dest-object",
+      http_method: :put,
+      parser: &ExAws.S3.Parsers.parse_upload_part_copy/1
+    }
+
+    assert expected ==
+             S3.upload_part_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "/foo/ü.txt",
+               "upload-id",
+               1,
+               1..9
+             )
+  end
+
+  test "#upload_part_copy encoding" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{
+        "x-amz-copy-source" => "/src-bucket/foo/hello%2Bfriend.txt",
+        "x-amz-copy-source-range" => "bytes=1-9"
+      },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "dest-object",
+      http_method: :put,
+      parser: &ExAws.S3.Parsers.parse_upload_part_copy/1
+    }
+
+    assert expected ==
+             S3.upload_part_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "/foo/hello+friend.txt",
+               "upload-id",
+               1,
+               1..9
+             )
+  end
+
+  test "#upload_part_copy percent encodes spaces" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{
+        "x-amz-copy-source" => "/src-bucket/foo/hello%20friend.txt",
+        "x-amz-copy-source-range" => "bytes=1-9"
+      },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "dest-object",
+      http_method: :put,
+      parser: &ExAws.S3.Parsers.parse_upload_part_copy/1
+    }
+
+    assert expected ==
+             S3.upload_part_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "/foo/hello friend.txt",
+               "upload-id",
+               1,
+               1..9
+             )
+  end
+
+  test "#upload_part_copy percent encodes reserved characters" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{
+        "x-amz-copy-source" => "/src-bucket/evil%20key%3Fx%3D1%26y%3D2",
+        "x-amz-copy-source-range" => "bytes=1-9"
+      },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "dest-object",
+      http_method: :put,
+      parser: &ExAws.S3.Parsers.parse_upload_part_copy/1
+    }
+
+    assert expected ==
+             S3.upload_part_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "evil key?x=1&y=2",
+               "upload-id",
+               1,
+               1..9
+             )
+  end
+
+  test "#upload_part_copy percent encodes CR/LF (no header injection)" do
+    expected = %Operation.S3{
+      bucket: "dest-bucket",
+      headers: %{
+        "x-amz-copy-source" => "/src-bucket/a%0D%0Ax-injected%3A%20pwned",
+        "x-amz-copy-source-range" => "bytes=1-9"
+      },
+      params: %{"uploadId" => "upload-id", "partNumber" => 1},
+      path: "dest-object",
+      http_method: :put,
+      parser: &ExAws.S3.Parsers.parse_upload_part_copy/1
+    }
+
+    assert expected ==
+             S3.upload_part_copy(
+               "dest-bucket",
+               "dest-object",
+               "src-bucket",
+               "a\r\nx-injected: pwned",
+               "upload-id",
+               1,
+               1..9
              )
   end
 
