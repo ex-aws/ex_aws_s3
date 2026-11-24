@@ -2,6 +2,8 @@ defmodule ExAws.S3.ImplTest do
   use ExUnit.Case, async: true
   alias ExAws.S3.Utils
 
+  @all_users "http://acs.amazonaws.com/groups/global/AllUsers"
+
   test "#build_cors_rule" do
     rule = %{allowed_origins: ["*"], allowed_headers: ["foo", "bar"], max_age_seconds: 45}
 
@@ -23,6 +25,51 @@ defmodule ExAws.S3.ImplTest do
 
     assert grants |> Utils.format_acl_headers() ==
              %{"x-amz-grant-read" => "emailAddress=\"foo@bar.com\", id=\"fake_id\""}
+  end
+
+  describe "format_grant_headers/1 grantee validation" do
+    test "accepts every documented grantee type" do
+      grants = [grant_full_control: [id: "fake_id", uri: @all_users, email: "foo@bar.com"]]
+
+      assert Utils.format_acl_headers(grants) == %{
+               "x-amz-grant-full-control" =>
+                 ~s(id="fake_id", uri="#{@all_users}", emailAddress="foo@bar.com")
+             }
+    end
+
+    test "rejects a grantee identifier containing a double quote" do
+      injected = ~s(victim@example.com", uri="#{@all_users})
+
+      assert_raise ArgumentError, ~r/invalid S3 grantee/, fn ->
+        Utils.format_acl_headers(grant_read: [email: injected])
+      end
+    end
+
+    test "rejects a grantee identifier containing a comma" do
+      assert_raise ArgumentError, ~r/invalid S3 grantee/, fn ->
+        Utils.format_acl_headers(grant_read: [id: "abc, id=def"])
+      end
+    end
+
+    test "rejects control characters and non-ASCII in a grantee identifier" do
+      for bad <- [
+            "a@b.com\r\nx-amz-acl: public-read",
+            "abc\n",
+            "abc\0",
+            "ünicode@example.com",
+            <<0xFF>>
+          ] do
+        assert_raise ArgumentError, ~r/invalid S3 grantee/, fn ->
+          Utils.format_acl_headers(grant_write: [email: bad])
+        end
+      end
+    end
+
+    test "rejects an unsafe grantee type" do
+      assert_raise ArgumentError, ~r/invalid S3 grantee/, fn ->
+        Utils.format_acl_headers(grant_read: [{~s(id="x", uri), @all_users}])
+      end
+    end
   end
 
   test "build_encryption_headers/1" do
