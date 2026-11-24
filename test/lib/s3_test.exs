@@ -2,6 +2,7 @@ defmodule ExAws.S3Test do
   # Setting async: false since we're modifying Application env
   use ExUnit.Case, async: false
   alias ExAws.{S3, Operation}
+  import SweetXml, only: [sigil_x: 2, xpath: 2]
 
   test "#list_objects" do
     res =
@@ -554,6 +555,286 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#put_bucket_lifecycle escapes caller-supplied values (GHSA-pcgv-phrm-r85v)" do
+    payload =
+      "frontend</Value></Tag></Filter>" <>
+        "<Expiration><Days>1</Days></Expiration>" <>
+        "<Filter><Tag><Key>team</Key><Value>frontend"
+
+    rule = %{id: "tenant-rule", enabled: true, filter: %{tags: [{"team", payload}]}, actions: %{}}
+
+    %Operation.S3{body: body, bucket: "bucket", http_method: :put, resource: "lifecycle"} =
+      S3.put_bucket_lifecycle("bucket", [rule])
+
+    refute body =~ "<Expiration>"
+
+    assert body ==
+             "<LifecycleConfiguration><Rule><Filter><Tag><Key>team</Key><Value>frontend&lt;/Value&gt;&lt;/Tag&gt;&lt;/Filter&gt;&lt;Expiration&gt;&lt;Days&gt;1&lt;/Days&gt;&lt;/Expiration&gt;&lt;Filter&gt;&lt;Tag&gt;&lt;Key&gt;team&lt;/Key&gt;&lt;Value&gt;frontend</Value></Tag></Filter><Status>Enabled</Status><ID>tenant-rule</ID></Rule></LifecycleConfiguration>"
+  end
+
+  describe "XML escaping of caller-supplied values" do
+    # A value containing every character the escaper handles. After escaping it must
+    # appear in the body as inert text, and an XML parser must read it back verbatim.
+    @raw ~s(a<b>&"c'd)
+    @escaped "a&lt;b&gt;&amp;&quot;c&apos;d"
+
+    defp texts(body, path), do: xpath(body, ~x"#{path}/text()"ls)
+
+    test "#put_bucket escapes the region" do
+      %Operation.S3{body: body} = S3.put_bucket("bucket", @raw)
+
+      refute body =~ "<b>"
+      assert body =~ "<LocationConstraint>#{@escaped}</LocationConstraint>"
+      assert texts(body, "//LocationConstraint") == [@raw]
+    end
+
+    test "#put_bucket_cors escapes rule values" do
+      rule = %{
+        allowed_origins: [@raw],
+        allowed_methods: [@raw],
+        allowed_headers: [@raw],
+        exposed_headers: [@raw],
+        max_age_seconds: @raw
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_cors("bucket", [rule])
+
+      refute body =~ "<b>"
+
+      assert body ==
+               "<CORSConfiguration><CORSRule>" <>
+                 "<MaxAgeSeconds>#{@escaped}</MaxAgeSeconds>" <>
+                 "<AllowedOrigin>#{@escaped}</AllowedOrigin>" <>
+                 "<AllowedMethod>#{@escaped}</AllowedMethod>" <>
+                 "<AllowedHeader>#{@escaped}</AllowedHeader>" <>
+                 "<ExposeHeader>#{@escaped}</ExposeHeader>" <>
+                 "</CORSRule></CORSConfiguration>"
+    end
+
+    test "#put_bucket_logging escapes target bucket and prefix" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_logging("bucket", target_bucket: @raw, target_prefix: @raw)
+
+      refute body =~ "<b>"
+      assert texts(body, "//LoggingEnabled/TargetBucket") == [@raw]
+      assert texts(body, "//LoggingEnabled/TargetPrefix") == [@raw]
+    end
+
+    test "#put_bucket_notification escapes ids, ARNs, events and filter rules" do
+      config = %{
+        topic_configurations: [
+          %{
+            id: @raw,
+            topic_arn: @raw,
+            events: [@raw],
+            filter: %{key: %{filter_rules: [%{name: @raw, value: @raw}]}}
+          }
+        ],
+        lambda_configurations: [%{id: @raw, lambda_function_arn: @raw, events: [@raw]}],
+        queue_configurations: [%{id: @raw, queue_arn: @raw, events: [@raw]}]
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_notification("bucket", config)
+
+      refute body =~ "<b>"
+      assert texts(body, "//TopicConfiguration/Id") == [@raw]
+      assert texts(body, "//TopicConfiguration/Topic") == [@raw]
+      assert texts(body, "//TopicConfiguration/Event") == [@raw]
+      assert texts(body, "//TopicConfiguration/Filter/S3Key/FilterRule/Name") == [@raw]
+      assert texts(body, "//TopicConfiguration/Filter/S3Key/FilterRule/Value") == [@raw]
+      assert texts(body, "//LambdaConfiguration/Id") == [@raw]
+      assert texts(body, "//LambdaConfiguration/LambdaFunctionArn") == [@raw]
+      assert texts(body, "//LambdaConfiguration/Event") == [@raw]
+      assert texts(body, "//QueueConfiguration/Id") == [@raw]
+      assert texts(body, "//QueueConfiguration/Queue") == [@raw]
+      assert texts(body, "//QueueConfiguration/Event") == [@raw]
+    end
+
+    test "#put_bucket_notification escapes simple-format prefix and suffix" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_notification("bucket",
+          topic_arn: @raw,
+          id: @raw,
+          events: [@raw],
+          prefix: @raw,
+          suffix: @raw
+        )
+
+      refute body =~ "<b>"
+      assert texts(body, "//TopicConfiguration/Topic") == [@raw]
+      assert texts(body, "//TopicConfiguration/Id") == [@raw]
+      assert texts(body, "//TopicConfiguration/Event") == [@raw]
+      assert texts(body, "//FilterRule/Value") == [@raw, @raw]
+    end
+
+    test "#put_bucket_replication escapes role, rule and destination values" do
+      config = %{
+        role: @raw,
+        rules: [
+          %{
+            id: @raw,
+            status: @raw,
+            filter: %{and: %{prefix: @raw, tags: [%{key: @raw, value: @raw}]}},
+            destination: %{
+              bucket: @raw,
+              storage_class: @raw,
+              account: @raw,
+              access_control_translation: %{owner: @raw}
+            }
+          },
+          %{filter: %{tag: %{key: @raw, value: @raw}}, destination: %{bucket: @raw}},
+          %{filter: %{prefix: @raw}, destination: %{bucket: @raw}}
+        ]
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_replication("bucket", config)
+
+      refute body =~ "<b>"
+      assert texts(body, "//ReplicationConfiguration/Role") == [@raw]
+      assert texts(body, "//Rule/ID") == [@raw]
+      assert texts(body, "//Rule/Status") == [@raw, "Enabled", "Enabled"]
+      assert texts(body, "//Rule/Filter/And/Prefix") == [@raw]
+      assert texts(body, "//Rule/Filter/And/Tag/Key") == [@raw]
+      assert texts(body, "//Rule/Filter/And/Tag/Value") == [@raw]
+      assert texts(body, "//Rule/Filter/Tag/Key") == [@raw]
+      assert texts(body, "//Rule/Filter/Tag/Value") == [@raw]
+      assert texts(body, "//Rule/Filter/Prefix") == [@raw]
+      assert texts(body, "//Destination/Bucket") == [@raw, @raw, @raw]
+      assert texts(body, "//Destination/StorageClass") == [@raw]
+      assert texts(body, "//Destination/Account") == [@raw]
+      assert texts(body, "//Destination/AccessControlTranslation/Owner") == [@raw]
+    end
+
+    test "#put_bucket_replication escapes simple-format values" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_replication("bucket",
+          role: @raw,
+          destination_bucket: @raw,
+          storage_class: @raw,
+          prefix: @raw
+        )
+
+      refute body =~ "<b>"
+      assert texts(body, "//ReplicationConfiguration/Role") == [@raw]
+      assert texts(body, "//Rule/Filter/Prefix") == [@raw]
+      assert texts(body, "//Destination/Bucket") == [@raw]
+      assert texts(body, "//Destination/StorageClass") == [@raw]
+    end
+
+    test "#put_bucket_tagging escapes keys and values" do
+      %Operation.S3{body: body} = S3.put_bucket_tagging("bucket", %{@raw => @raw})
+
+      assert body ==
+               ~s(<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet>) <>
+                 "<Tag><Key>#{@escaped}</Key><Value>#{@escaped}</Value></Tag>" <>
+                 "</TagSet></Tagging>"
+    end
+
+    test "#put_object_tagging escapes keys and values" do
+      %Operation.S3{body: body} = S3.put_object_tagging("bucket", "object", %{@raw => @raw})
+
+      assert body ==
+               ~s(<?xml version="1.0" encoding="UTF-8"?><Tagging><TagSet>) <>
+                 "<Tag><Key>#{@escaped}</Key><Value>#{@escaped}</Value></Tag>" <>
+                 "</TagSet></Tagging>"
+    end
+
+    test "#put_bucket_website escapes redirect-all values" do
+      %Operation.S3{body: body} =
+        S3.put_bucket_website("bucket",
+          redirect_all_requests_to: %{host_name: @raw, protocol: @raw}
+        )
+
+      refute body =~ "<b>"
+      assert texts(body, "//RedirectAllRequestsTo/HostName") == [@raw]
+      assert texts(body, "//RedirectAllRequestsTo/Protocol") == [@raw]
+    end
+
+    test "#put_bucket_website escapes documents and routing rules" do
+      config = %{
+        index_document: @raw,
+        error_document: @raw,
+        routing_rules: [
+          %{
+            condition: %{key_prefix_equals: @raw},
+            redirect: %{
+              protocol: @raw,
+              host_name: @raw,
+              replace_key_prefix_with: @raw,
+              replace_key_with: @raw,
+              http_redirect_code: @raw
+            }
+          },
+          %{condition: %{http_error_code_returned_equals: @raw}, redirect: %{}}
+        ]
+      }
+
+      %Operation.S3{body: body} = S3.put_bucket_website("bucket", config)
+
+      refute body =~ "<b>"
+      assert texts(body, "//IndexDocument/Suffix") == [@raw]
+      assert texts(body, "//ErrorDocument/Key") == [@raw]
+      assert texts(body, "//RoutingRule/Condition/KeyPrefixEquals") == [@raw]
+      assert texts(body, "//RoutingRule/Condition/HttpErrorCodeReturnedEquals") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/Protocol") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/HostName") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/ReplaceKeyPrefixWith") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/ReplaceKeyWith") == [@raw]
+      assert texts(body, "//RoutingRule/Redirect/HttpRedirectCode") == [@raw]
+    end
+
+    test "#put_bucket_logging does not let a target bucket inject a node (GHSA-cf93-7gwh-6w98)" do
+      payload = "tenant-logs</TargetBucket><TargetBucket>attacker-exfil-bucket"
+
+      %Operation.S3{body: body} = S3.put_bucket_logging("bucket", target_bucket: payload)
+
+      assert texts(body, "//TargetBucket") == [payload]
+      refute "attacker-exfil-bucket" in texts(body, "//TargetBucket")
+    end
+
+    test "tagging does not let a tag value inject a tag (GHSA-979q-5hj9-vvvv)" do
+      payload = "blue</Value></Tag><Tag><Key>owner</Key><Value>admin"
+
+      for %Operation.S3{body: body} <- [
+            S3.put_object_tagging("bucket", "object", [{"customer", payload}]),
+            S3.put_bucket_tagging("bucket", [{"customer", payload}])
+          ] do
+        assert texts(body, "//TagSet/Tag/Key") == ["customer"]
+        assert texts(body, "//TagSet/Tag/Value") == [payload]
+      end
+    end
+
+    test "#delete_multiple_objects escapes version ids" do
+      %Operation.S3{body: body} = S3.delete_multiple_objects("bucket", [{"key", @raw}])
+
+      refute body =~ "<b>"
+      assert body =~ "<VersionId>#{@escaped}</VersionId>"
+      assert texts(body, "//Object/VersionId") == [@raw]
+    end
+
+    test "#delete_multiple_objects does not let a version id inject objects (GHSA-mwxg-gfj8-x32v)" do
+      payload =
+        "v1</VersionId></Object>" <>
+          "<Object><Key>important-file</Key></Object>" <>
+          "<Object><Key>x</Key><VersionId>v2"
+
+      %Operation.S3{body: body} =
+        S3.delete_multiple_objects("bucket", [{"my-own-file", payload}])
+
+      assert texts(body, "//Delete/Object/Key") == ["my-own-file"]
+      assert texts(body, "//Delete/Object/VersionId") == [payload]
+    end
+
+    test "#complete_multipart_upload escapes etags" do
+      %Operation.S3{body: body} =
+        S3.complete_multipart_upload("bucket", "object", "upload-id", [{1, @raw}])
+
+      refute body =~ "<b>"
+      assert body =~ "<ETag>#{@escaped}</ETag>"
+      assert texts(body, "//Part/ETag") == [@raw]
+    end
+  end
+
   test "#delete_multiple_objects" do
     expected = %Operation.S3{
       body:
@@ -754,12 +1035,93 @@ defmodule ExAws.S3Test do
     )
   end
 
-  test "#presigned_url file is key with embedded query params" do
-    {:ok, url} = S3.presigned_url(config(), :get, "bucket", "/foo/bar.txt?d=400")
+  describe "#presigned_url with ? in the object key (GHSA-96q9-mcc7-hqj8)" do
+    # Keeping the `?` in the key needs an ex_aws release whose
+    # `ExAws.Auth.presigned_url/9` accepts a `%URI{}`. With an older ex_aws such
+    # a key is refused instead of being presigned for a different object.
+    defp presigned_path(http_method, bucket, object, opts \\ []) do
+      {:ok, url} = S3.presigned_url(config(), http_method, bucket, object, opts)
+      [base, query] = String.split(url, "?", parts: 2)
+      {base, URI.decode_query(query)}
+    end
 
-    assert_pre_signed_url(url, "https://s3.amazonaws.com/bucket/foo/bar.txt", "3600", %{
-      "d" => "400"
-    })
+    defp ex_aws_keeps_question_mark? do
+      match?({:ok, _url}, S3.presigned_url(config(), :get, "bucket", "a?b"))
+    rescue
+      ArgumentError -> false
+    end
+
+    test "a ? in the key is not turned into query params" do
+      if ex_aws_keeps_question_mark?() do
+        {base, query} = presigned_path(:get, "bucket", "/foo/bar.txt?d=400")
+        assert base == "https://s3.amazonaws.com/bucket/foo/bar.txt%3Fd%3D400"
+        refute Map.has_key?(query, "d")
+
+        {base, query} = presigned_path(:put, "victim-bucket", "report.pdf?acl")
+        assert base == "https://s3.amazonaws.com/victim-bucket/report.pdf%3Facl"
+        refute Map.has_key?(query, "acl")
+
+        {base, query} = presigned_path(:get, "victim-bucket", "export.dump?.txt")
+        assert base == "https://s3.amazonaws.com/victim-bucket/export.dump%3F.txt"
+        refute Map.has_key?(query, ".txt")
+      else
+        for key <- ["/foo/bar.txt?d=400", "report.pdf?acl", "export.dump?.txt"] do
+          assert_raise ArgumentError, ~r/GHSA-96q9-mcc7-hqj8/, fn ->
+            S3.presigned_url(config(), :get, "bucket", key)
+          end
+        end
+      end
+    end
+
+    test "a ? in the key is kept with virtual host addressing" do
+      for opts <- [[virtual_host: true], [s3_accelerate: true]] do
+        if ex_aws_keeps_question_mark?() do
+          {base, query} = presigned_path(:put, "victim-bucket", "report.pdf?acl", opts)
+          assert String.ends_with?(base, "amazonaws.com/report.pdf%3Facl")
+          assert URI.parse(base).host =~ ~r/^victim-bucket\.s3(-accelerate)?\.amazonaws\.com$/
+          refute Map.has_key?(query, "acl")
+        else
+          assert_raise ArgumentError, ~r/GHSA-96q9-mcc7-hqj8/, fn ->
+            S3.presigned_url(config(), :put, "victim-bucket", "report.pdf?acl", opts)
+          end
+        end
+      end
+    end
+
+    test "a ? in a path style bucket name does not start the query" do
+      if ex_aws_keeps_question_mark?() do
+        {base, query} = presigned_path(:get, "photos?policy", "obj.txt")
+        assert base == "https://s3.amazonaws.com/photos%3Fpolicy/obj.txt"
+        refute Map.has_key?(query, "policy/obj.txt")
+      else
+        assert_raise ArgumentError, ~r/GHSA-96q9-mcc7-hqj8/, fn ->
+          S3.presigned_url(config(), :get, "photos?policy", "obj.txt")
+        end
+      end
+    end
+
+    test "query params are passed with the :query_params option" do
+      opts = [query_params: [{"versionId", "1"}]]
+
+      if ex_aws_keeps_question_mark?() do
+        {base, query} = presigned_path(:get, "bucket", "a?b.txt", opts)
+        assert base == "https://s3.amazonaws.com/bucket/a%3Fb.txt"
+        assert query["versionId"] == "1"
+      end
+
+      {base, query} = presigned_path(:get, "bucket", "a.txt", opts)
+      assert base == "https://s3.amazonaws.com/bucket/a.txt"
+      assert query["versionId"] == "1"
+    end
+
+    test "keys without ? are presigned as before" do
+      {base, _query} = presigned_path(:get, "bucket", "dir/a b+c#d%.txt")
+      assert base == "https://s3.amazonaws.com/bucket/dir/a%20b%2Bc%23d%25.txt"
+
+      config = ExAws.Config.new(:s3, port: 9000, scheme: "http://", host: "localhost")
+      {:ok, url} = S3.presigned_url(config, :get, "bucket", "a b.txt")
+      assert String.starts_with?(url, "http://localhost:9000/bucket/a%20b.txt?")
+    end
   end
 
   test "#presigned_url raises exception on bad expires_in option" do
@@ -1284,5 +1646,290 @@ defmodule ExAws.S3Test do
              )
   end
 
+  test "#put_object_acl with explicit grants" do
+    res = S3.put_object_acl("bucket", "object", grant_read: [email: "foo@bar.com", id: "fake_id"])
+
+    assert res.headers == %{"x-amz-grant-read" => ~s(emailAddress="foo@bar.com", id="fake_id")}
+    assert res.resource == "acl"
+    assert res.http_method == :put
+  end
+
+  test "grantee injection is rejected by every operation that accepts grants" do
+    injected = [
+      email: ~s(victim@example.com", uri="http://acs.amazonaws.com/groups/global/AllUsers)
+    ]
+
+    operations = [
+      fn -> S3.put_object_acl("bucket", "object", grant_read: injected) end,
+      fn -> S3.put_bucket_acl("bucket", grant_full_control: injected) end,
+      fn -> S3.put_bucket("bucket", "us-east-1", grant_write: injected) end,
+      fn -> S3.put_object("bucket", "object", "body", grant_read_acp: injected) end,
+      fn -> S3.put_object_copy("dest", "object", "src", "object", grant_write_acp: injected) end,
+      fn -> S3.initiate_multipart_upload("bucket", "object", grant_full_control: injected) end
+    ]
+
+    for operation <- operations do
+      assert_raise ArgumentError, ~r/invalid S3 grantee/, operation
+    end
+  end
+
+  describe "bucket names used as the request host" do
+    @malicious_bucket "attacker.example/x?"
+
+    test "#presigned_url with virtual_host rejects a bucket name that would change the host" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, @malicious_bucket, "foo.txt", virtual_host: true)
+      end
+    end
+
+    test "#presigned_url with s3_accelerate rejects a bucket name that would change the host" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, @malicious_bucket, "foo.txt", s3_accelerate: true)
+      end
+    end
+
+    test "#presigned_url with bucket_as_host rejects a bucket that is not a plain hostname" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :put, @malicious_bucket, "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true
+        )
+      end
+    end
+
+    test "#presigned_post with virtual_host rejects a bucket name that would change the host" do
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_post(config(), @malicious_bucket, "foo.txt", virtual_host: true)
+      end
+    end
+
+    test "#presigned_url with bucket_as_host and no allowlist accepts any hostname" do
+      {:ok, url} =
+        S3.presigned_url(config(), :get, "mybucket.example.com", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true
+        )
+
+      assert_pre_signed_url(url, "https://mybucket.example.com/foo.txt", "3600")
+    end
+
+    test "#presigned_url with bucket_as_host only accepts hosts in the allowlist option" do
+      opts = [
+        virtual_host: true,
+        bucket_as_host: true,
+        bucket_as_host_allowlist: ["assets.example.com", "media.example.com"]
+      ]
+
+      for bucket <- ["assets.example.com", "MEDIA.example.com"] do
+        {:ok, url} = S3.presigned_url(config(), :get, bucket, "foo.txt", opts)
+        assert_pre_signed_url(url, "https://#{bucket}/foo.txt", "3600")
+      end
+
+      for bucket <- [
+            "attacker.example",
+            "169.254.169.254",
+            "localhost",
+            "assets.example.com.",
+            "assets.example.com.attacker.example",
+            "xassets.example.com"
+          ] do
+        assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+          S3.presigned_url(config(), :put, bucket, "foo.txt", opts)
+        end
+      end
+    end
+
+    test "#presigned_post with bucket_as_host only accepts hosts in the allowlist option" do
+      opts = [
+        virtual_host: true,
+        bucket_as_host: true,
+        bucket_as_host_allowlist: ["assets.example.com"]
+      ]
+
+      assert %{url: "https://assets.example.com"} =
+               S3.presigned_post(config(), "assets.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_post(config(), "attacker.example", "foo.txt", opts)
+      end
+    end
+
+    test "bucket_as_host falls back to the allowlist in the S3 config" do
+      config = Map.put(config(), :bucket_as_host_allowlist, ["assets.example.com"])
+      opts = [virtual_host: true, bucket_as_host: true]
+
+      assert {:ok, _url} = S3.presigned_url(config, :get, "assets.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config, :get, "attacker.example", "foo.txt", opts)
+      end
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_post(config, "attacker.example", "foo.txt", opts)
+      end
+    end
+
+    test "the allowlist option takes precedence over the S3 config" do
+      config = Map.put(config(), :bucket_as_host_allowlist, ["assets.example.com"])
+
+      opts = [
+        virtual_host: true,
+        bucket_as_host: true,
+        bucket_as_host_allowlist: ["media.example.com"]
+      ]
+
+      assert {:ok, _url} = S3.presigned_url(config, :get, "media.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config, :get, "assets.example.com", "foo.txt", opts)
+      end
+    end
+
+    test "a nil allowlist option does not switch off the allowlist in the S3 config" do
+      config = Map.put(config(), :bucket_as_host_allowlist, ["assets.example.com"])
+      opts = [virtual_host: true, bucket_as_host: true, bucket_as_host_allowlist: nil]
+
+      assert {:ok, _url} = S3.presigned_url(config, :get, "assets.example.com", "foo.txt", opts)
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config, :get, "attacker.example", "foo.txt", opts)
+      end
+    end
+
+    test "the allowlist in the S3 config survives ExAws.Config.new/2" do
+      # Needs an ex_aws release with the GHSA-rcv9-2jx2-63xh fix. Older releases
+      # collapse the list to its first element, which fails closed (see below).
+      config =
+        config(bucket_as_host_allowlist: ["assets.example.com", "media.example.com"])
+
+      opts = [virtual_host: true, bucket_as_host: true]
+
+      if is_list(config[:bucket_as_host_allowlist]) do
+        assert {:ok, _url} = S3.presigned_url(config, :get, "media.example.com", "foo.txt", opts)
+
+        assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+          S3.presigned_url(config, :get, "attacker.example", "foo.txt", opts)
+        end
+      else
+        assert_raise ArgumentError, ~r/expected a list of hostnames/, fn ->
+          S3.presigned_url(config, :get, "media.example.com", "foo.txt", opts)
+        end
+      end
+    end
+
+    test "atom bucket names are checked as strings" do
+      {:ok, url} = S3.presigned_url(config(), :get, :my_bucket, "foo.txt", virtual_host: true)
+      assert_pre_signed_url(url, "https://my_bucket.s3.amazonaws.com/foo.txt", "3600")
+
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, :"attacker.example/x?", "foo.txt", virtual_host: true)
+      end
+
+      assert_raise ArgumentError, ~r/invalid bucket name/, fn ->
+        S3.presigned_url(config(), :get, nil, "foo.txt", virtual_host: true)
+      end
+
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_post(config(), :"attacker.example", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true,
+          bucket_as_host_allowlist: ["assets.example.com"]
+        )
+      end
+    end
+
+    test "an empty allowlist rejects every bucket_as_host bucket" do
+      assert_raise ArgumentError, ~r/not in the configured `bucket_as_host_allowlist`/, fn ->
+        S3.presigned_url(config(), :get, "assets.example.com", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true,
+          bucket_as_host_allowlist: []
+        )
+      end
+    end
+
+    test "an allowlist that is not a list fails closed" do
+      # Older ex_aws versions collapse a list in the S3 config to its first element.
+      config = Map.put(config(), :bucket_as_host_allowlist, "assets.example.com")
+
+      assert_raise ArgumentError, ~r/expected a list of hostnames/, fn ->
+        S3.presigned_url(config, :get, "assets.example.com", "foo.txt",
+          virtual_host: true,
+          bucket_as_host: true
+        )
+      end
+    end
+
+    test "the allowlist does not apply without bucket_as_host" do
+      opts = [virtual_host: true, bucket_as_host_allowlist: ["assets.example.com"]]
+
+      {:ok, url} = S3.presigned_url(config(), :get, "my-bucket", "foo.txt", opts)
+      assert_pre_signed_url(url, "https://my-bucket.s3.amazonaws.com/foo.txt", "3600")
+    end
+
+    test "#presigned_url with virtual_host still accepts ordinary bucket names" do
+      for bucket <- ["my-bucket", "my.bucket.name", "Legacy_Bucket_1"] do
+        {:ok, url} = S3.presigned_url(config(), :get, bucket, "foo.txt", virtual_host: true)
+        assert_pre_signed_url(url, "https://#{bucket}.s3.amazonaws.com/foo.txt", "3600")
+      end
+    end
+  end
+
   defp config(opts \\ []), do: ExAws.Config.new(:s3, opts)
+
+  describe "HTTP header injection protection" do
+    @crlf_value "legit\r\nX-Injected-By-Attacker: pwned\r\nX-Smuggled: yes"
+
+    test "#put_object rejects CR/LF in metadata values" do
+      assert_raise ArgumentError, ~r/x-amz-meta-comment/, fn ->
+        S3.put_object("bucket", "object", "data", meta: [{"comment", @crlf_value}])
+      end
+    end
+
+    test "#put_object rejects CR/LF in metadata keys" do
+      assert_raise ArgumentError, ~r/invalid HTTP header name/, fn ->
+        S3.put_object("bucket", "object", "data", meta: [{"comment\r\nX-Evil: 1", "value"}])
+      end
+    end
+
+    test "#put_object rejects CR/LF in other header options" do
+      assert_raise ArgumentError, ~r/content-disposition/, fn ->
+        S3.put_object("bucket", "object", "data",
+          content_disposition: "attachment; filename=\"a.txt\"\r\nX-Evil: 1"
+        )
+      end
+    end
+
+    test "#put_object_copy rejects CR/LF in metadata" do
+      assert_raise ArgumentError, fn ->
+        S3.put_object_copy("dest", "object", "src", "object", meta: [comment: @crlf_value])
+      end
+    end
+
+    test "#initiate_multipart_upload rejects CR/LF in metadata" do
+      assert_raise ArgumentError, fn ->
+        S3.initiate_multipart_upload("bucket", "object", meta: [comment: @crlf_value])
+      end
+    end
+
+    test "caller-supplied headers are validated too" do
+      assert_raise ArgumentError, fn ->
+        S3.list_objects("bucket", headers: %{"x-amz-request-payer" => @crlf_value})
+      end
+
+      assert_raise ArgumentError, fn ->
+        S3.get_object_acl("bucket", "object", [{"x-amz-request-payer", @crlf_value}])
+      end
+    end
+
+    test "ordinary metadata is still accepted" do
+      %Operation.S3{headers: headers} =
+        S3.put_object("bucket", "object", "data",
+          meta: [{"comment", "tabs\tand spaces and ünïcödé"}, {:owner_id, 42}]
+        )
+
+      assert headers["x-amz-meta-comment"] == "tabs\tand spaces and ünïcödé"
+      assert headers["x-amz-meta-owner_id"] == 42
+    end
+  end
 end

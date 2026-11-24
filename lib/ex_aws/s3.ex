@@ -60,6 +60,7 @@ defmodule ExAws.S3 do
           | {:query_params, [{binary, binary}]}
           | {:headers, [{binary, binary}]}
           | {:bucket_as_host, boolean}
+          | {:bucket_as_host_allowlist, [binary]}
           | {:start_datetime, Calendar.naive_datetime() | :calendar.datetime()}
         ]
 
@@ -72,6 +73,7 @@ defmodule ExAws.S3 do
           | {:virtual_host, boolean}
           | {:s3_accelerate, boolean}
           | {:bucket_as_host, boolean}
+          | {:bucket_as_host_allowlist, [binary]}
         ]
 
   @type presigned_post_result :: %{
@@ -79,6 +81,12 @@ defmodule ExAws.S3 do
           fields: %{binary => binary}
         }
 
+  @typedoc """
+  User-defined object metadata, sent as `x-amz-meta-*` request headers.
+
+  Keys must be valid HTTP header tokens and values must not contain control
+  characters such as CR or LF. `ArgumentError` is raised otherwise.
+  """
   @type amz_meta_opts :: [{atom, binary} | {binary, binary}, ...]
 
   @typedoc """
@@ -503,8 +511,8 @@ defmodule ExAws.S3 do
     body = """
     <BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
       <LoggingEnabled>
-        <TargetBucket>#{target_bucket}</TargetBucket>
-        <TargetPrefix>#{target_prefix}</TargetPrefix>
+        <TargetBucket>#{escape_xml_string(target_bucket)}</TargetBucket>
+        <TargetPrefix>#{escape_xml_string(target_prefix)}</TargetPrefix>
       </LoggingEnabled>
     </BucketLoggingStatus>
     """
@@ -603,14 +611,14 @@ defmodule ExAws.S3 do
     events = Map.get(config, :events, [])
     filter = Map.get(config, :filter)
 
-    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
-    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    id_xml = if id != "", do: "<Id>#{escape_xml_string(id)}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{escape_xml_string(&1)}</Event>")
     filter_xml = if filter, do: build_filter_xml(filter), else: ""
 
     """
     <TopicConfiguration>
     #{id_xml}
-    <Topic>#{topic_arn}</Topic>
+    <Topic>#{escape_xml_string(topic_arn)}</Topic>
     #{events_xml}
     #{filter_xml}
     </TopicConfiguration>
@@ -623,14 +631,14 @@ defmodule ExAws.S3 do
     events = Map.get(config, :events, [])
     filter = Map.get(config, :filter)
 
-    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
-    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    id_xml = if id != "", do: "<Id>#{escape_xml_string(id)}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{escape_xml_string(&1)}</Event>")
     filter_xml = if filter, do: build_filter_xml(filter), else: ""
 
     """
     <LambdaConfiguration>
     #{id_xml}
-    <LambdaFunctionArn>#{lambda_arn}</LambdaFunctionArn>
+    <LambdaFunctionArn>#{escape_xml_string(lambda_arn)}</LambdaFunctionArn>
     #{events_xml}
     #{filter_xml}
     </LambdaConfiguration>
@@ -643,14 +651,14 @@ defmodule ExAws.S3 do
     events = Map.get(config, :events, [])
     filter = Map.get(config, :filter)
 
-    id_xml = if id != "", do: "<Id>#{id}</Id>", else: ""
-    events_xml = Enum.map(events, &"<Event>#{&1}</Event>")
+    id_xml = if id != "", do: "<Id>#{escape_xml_string(id)}</Id>", else: ""
+    events_xml = Enum.map(events, &"<Event>#{escape_xml_string(&1)}</Event>")
     filter_xml = if filter, do: build_filter_xml(filter), else: ""
 
     """
     <QueueConfiguration>
     #{id_xml}
-    <Queue>#{queue_arn}</Queue>
+    <Queue>#{escape_xml_string(queue_arn)}</Queue>
     #{events_xml}
     #{filter_xml}
     </QueueConfiguration>
@@ -662,7 +670,7 @@ defmodule ExAws.S3 do
 
     rules_xml =
       Enum.map(filter_rules, fn rule ->
-        "<FilterRule><Name>#{rule.name}</Name><Value>#{rule.value}</Value></FilterRule>"
+        "<FilterRule><Name>#{escape_xml_string(rule.name)}</Name><Value>#{escape_xml_string(rule.value)}</Value></FilterRule>"
       end)
 
     """
@@ -801,7 +809,7 @@ defmodule ExAws.S3 do
 
     body = """
     <ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <Role>#{role}</Role>
+      <Role>#{escape_xml_string(role)}</Role>
       #{rules_xml}
     </ReplicationConfiguration>
     """
@@ -817,31 +825,32 @@ defmodule ExAws.S3 do
     filter = Map.get(rule, :filter)
     destination = Map.fetch!(rule, :destination)
 
-    id_xml = if id != "", do: "<ID>#{id}</ID>", else: ""
+    id_xml = if id != "", do: "<ID>#{escape_xml_string(id)}</ID>", else: ""
 
     filter_xml =
       if filter do
         cond do
           Map.has_key?(filter, :prefix) ->
-            "<Filter><Prefix>#{filter.prefix}</Prefix></Filter>"
+            "<Filter><Prefix>#{escape_xml_string(filter.prefix)}</Prefix></Filter>"
 
           Map.has_key?(filter, :tag) ->
             tag = filter.tag
-            "<Filter><Tag><Key>#{tag.key}</Key><Value>#{tag.value}</Value></Tag></Filter>"
+
+            "<Filter><Tag><Key>#{escape_xml_string(tag.key)}</Key><Value>#{escape_xml_string(tag.value)}</Value></Tag></Filter>"
 
           Map.has_key?(filter, :and) ->
             and_filter = filter.and
 
             prefix_xml =
               if Map.has_key?(and_filter, :prefix),
-                do: "<Prefix>#{and_filter.prefix}</Prefix>",
+                do: "<Prefix>#{escape_xml_string(and_filter.prefix)}</Prefix>",
                 else: ""
 
             tags_xml =
               and_filter
               |> Map.get(:tags, [])
               |> Enum.map(fn tag ->
-                "<Tag><Key>#{tag.key}</Key><Value>#{tag.value}</Value></Tag>"
+                "<Tag><Key>#{escape_xml_string(tag.key)}</Key><Value>#{escape_xml_string(tag.value)}</Value></Tag>"
               end)
 
             "<Filter><And>#{prefix_xml}#{tags_xml}</And></Filter>"
@@ -858,7 +867,7 @@ defmodule ExAws.S3 do
     """
     <Rule>
       #{id_xml}
-      <Status>#{status}</Status>
+      <Status>#{escape_xml_string(status)}</Status>
       #{filter_xml}
       #{destination_xml}
     </Rule>
@@ -871,20 +880,25 @@ defmodule ExAws.S3 do
     account = Map.get(destination, :account)
     access_control_translation = Map.get(destination, :access_control_translation)
 
-    storage_xml = if storage_class, do: "<StorageClass>#{storage_class}</StorageClass>", else: ""
-    account_xml = if account, do: "<Account>#{account}</Account>", else: ""
+    storage_xml =
+      if storage_class,
+        do: "<StorageClass>#{escape_xml_string(storage_class)}</StorageClass>",
+        else: ""
+
+    account_xml = if account, do: "<Account>#{escape_xml_string(account)}</Account>", else: ""
 
     access_control_xml =
       if access_control_translation do
         owner = Map.get(access_control_translation, :owner, "Destination")
-        "<AccessControlTranslation><Owner>#{owner}</Owner></AccessControlTranslation>"
+
+        "<AccessControlTranslation><Owner>#{escape_xml_string(owner)}</Owner></AccessControlTranslation>"
       else
         ""
       end
 
     """
     <Destination>
-      <Bucket>#{bucket}</Bucket>
+      <Bucket>#{escape_xml_string(bucket)}</Bucket>
       #{storage_xml}
       #{account_xml}
       #{access_control_xml}
@@ -910,7 +924,13 @@ defmodule ExAws.S3 do
       tags
       |> Enum.map(fn
         {key, value} ->
-          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+          [
+            "<Tag><Key>",
+            escape_xml_string(key),
+            "</Key><Value>",
+            escape_xml_string(value),
+            "</Value></Tag>"
+          ]
       end)
 
     body = [
@@ -1027,8 +1047,8 @@ defmodule ExAws.S3 do
 
           """
           <RedirectAllRequestsTo>
-            <HostName>#{host_name}</HostName>
-            <Protocol>#{protocol}</Protocol>
+            <HostName>#{escape_xml_string(host_name)}</HostName>
+            <Protocol>#{escape_xml_string(protocol)}</Protocol>
           </RedirectAllRequestsTo>
           """
 
@@ -1037,11 +1057,12 @@ defmodule ExAws.S3 do
           error_doc = Map.get(config, :error_document)
           routing_rules = Map.get(config, :routing_rules, [])
 
-          index_xml = "<IndexDocument><Suffix>#{index_doc}</Suffix></IndexDocument>"
+          index_xml =
+            "<IndexDocument><Suffix>#{escape_xml_string(index_doc)}</Suffix></IndexDocument>"
 
           error_xml =
             if error_doc do
-              "<ErrorDocument><Key>#{error_doc}</Key></ErrorDocument>"
+              "<ErrorDocument><Key>#{escape_xml_string(error_doc)}</Key></ErrorDocument>"
             else
               ""
             end
@@ -1075,10 +1096,10 @@ defmodule ExAws.S3 do
     condition_xml =
       cond do
         Map.has_key?(condition, :key_prefix_equals) ->
-          "<Condition><KeyPrefixEquals>#{condition[:key_prefix_equals]}</KeyPrefixEquals></Condition>"
+          "<Condition><KeyPrefixEquals>#{escape_xml_string(condition[:key_prefix_equals])}</KeyPrefixEquals></Condition>"
 
         Map.has_key?(condition, :http_error_code_returned_equals) ->
-          "<Condition><HttpErrorCodeReturnedEquals>#{condition[:http_error_code_returned_equals]}</HttpErrorCodeReturnedEquals></Condition>"
+          "<Condition><HttpErrorCodeReturnedEquals>#{escape_xml_string(condition[:http_error_code_returned_equals])}</HttpErrorCodeReturnedEquals></Condition>"
 
         true ->
           ""
@@ -1088,31 +1109,35 @@ defmodule ExAws.S3 do
 
     redirect_parts =
       if Map.has_key?(redirect, :protocol),
-        do: ["<Protocol>#{redirect[:protocol]}</Protocol>" | redirect_parts],
+        do: ["<Protocol>#{escape_xml_string(redirect[:protocol])}</Protocol>" | redirect_parts],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :host_name),
-        do: ["<HostName>#{redirect[:host_name]}</HostName>" | redirect_parts],
+        do: ["<HostName>#{escape_xml_string(redirect[:host_name])}</HostName>" | redirect_parts],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :replace_key_prefix_with),
         do: [
-          "<ReplaceKeyPrefixWith>#{redirect[:replace_key_prefix_with]}</ReplaceKeyPrefixWith>"
+          "<ReplaceKeyPrefixWith>#{escape_xml_string(redirect[:replace_key_prefix_with])}</ReplaceKeyPrefixWith>"
           | redirect_parts
         ],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :replace_key_with),
-        do: ["<ReplaceKeyWith>#{redirect[:replace_key_with]}</ReplaceKeyWith>" | redirect_parts],
+        do: [
+          "<ReplaceKeyWith>#{escape_xml_string(redirect[:replace_key_with])}</ReplaceKeyWith>"
+          | redirect_parts
+        ],
         else: redirect_parts
 
     redirect_parts =
       if Map.has_key?(redirect, :http_redirect_code),
         do: [
-          "<HttpRedirectCode>#{redirect[:http_redirect_code]}</HttpRedirectCode>" | redirect_parts
+          "<HttpRedirectCode>#{escape_xml_string(redirect[:http_redirect_code])}</HttpRedirectCode>"
+          | redirect_parts
         ],
         else: redirect_parts
 
@@ -1200,7 +1225,7 @@ defmodule ExAws.S3 do
             "<Object><Key>",
             escape_xml_string(key),
             "</Key><VersionId>",
-            version,
+            escape_xml_string(version),
             "</VersionId></Object>"
           ]
 
@@ -1555,7 +1580,7 @@ defmodule ExAws.S3 do
 
     body = """
     <RestoreRequest xmlns="http://s3.amazonaws.com/doc/2006-3-01">
-      <Days>#{number_of_days}</Days>
+      <Days>#{escape_xml_string(number_of_days)}</Days>
     </RestoreRequest>
     """
 
@@ -1622,7 +1647,13 @@ defmodule ExAws.S3 do
     tags_xml =
       Enum.map(tags, fn
         {key, value} ->
-          ["<Tag><Key>", to_string(key), "</Key><Value>", to_string(value), "</Value></Tag>"]
+          [
+            "<Tag><Key>",
+            escape_xml_string(key),
+            "</Key><Value>",
+            escape_xml_string(value),
+            "</Value></Tag>"
+          ]
       end)
 
     body = [
@@ -1952,7 +1983,7 @@ defmodule ExAws.S3 do
           Integer.to_string(part_number),
           "</PartNumber>",
           "<ETag>",
-          etag,
+          escape_xml_string(etag),
           "</ETag>",
           "</Part>"
         ]
@@ -2003,6 +2034,45 @@ defmodule ExAws.S3 do
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
 
+  ## Object keys containing `?`
+
+  The object key is signed as given: a `?` in it is part of the key and never
+  starts the query string, so `"report.pdf?acl"` is the object of that name.
+  Pass query parameters with `:query_params`, not by appending them to the key.
+  This needs a version of `ex_aws` that includes the fix for
+  GHSA-96q9-mcc7-hqj8. With an older `ex_aws`, a bucket or key containing `?`
+  raises `ArgumentError`.
+
+  ## Bucket names and the URL host
+
+  When the bucket is used as part of the hostname (`:virtual_host`,
+  `:s3_accelerate` or `:bucket_as_host`) it may only contain letters, digits,
+  `.`, `-` and `_`. Any other bucket name raises `ArgumentError`, because it
+  would change the host the URL points at.
+
+  With `:bucket_as_host` the bucket name is the *whole* hostname, so whoever
+  chooses the bucket name chooses the host: `attacker.example` is a perfectly
+  valid hostname and no character check can reject it. **Never pass an
+  untrusted bucket name together with `bucket_as_host: true`.** If bucket names
+  are not fully under your control, set the option param
+  `:bucket_as_host_allowlist` to the list of hostnames you trust; any other
+  bucket then raises `ArgumentError` (exact match, case-insensitive):
+
+  ```
+  ExAws.S3.presigned_url(config, :get, "assets.example.com", "my-object",
+    virtual_host: true,
+    bucket_as_host: true,
+    bucket_as_host_allowlist: ["assets.example.com", "media.example.com"]
+  )
+  ```
+
+  When the option param is not given, the `bucket_as_host_allowlist` key of the
+  S3 config is used, which is the same setting `ExAws.Operation.S3` checks for
+  requests. Reading it from the config needs a version of `ex_aws` that
+  supports that key; older versions do not keep the list intact, so pass the
+  option param there. Without an allowlist any syntactically valid hostname is
+  accepted.
+
   Option param `:start_datetime` can be used to modify the start date for the presigned url, which
   allows for cache friendly urls.
 
@@ -2034,6 +2104,7 @@ defmodule ExAws.S3 do
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
     bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
+    host_allowlist = bucket_as_host_allowlist(opts, config)
     headers = Keyword.get(opts, :headers, [])
 
     {config, virtual_host} =
@@ -2046,7 +2117,10 @@ defmodule ExAws.S3 do
         {:error, "expires_in_exceeds_one_week"}
 
       false ->
-        url = url_to_sign(bucket, object, config, virtual_host, bucket_as_host)
+        url =
+          bucket
+          |> url_parts(object, config, virtual_host, bucket_as_host, host_allowlist)
+          |> presign_target()
 
         datetime =
           Keyword.get(opts, :start_datetime, NaiveDateTime.utc_now())
@@ -2086,6 +2160,36 @@ defmodule ExAws.S3 do
   When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname.
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
+
+  ## Bucket names and the form action host
+
+  When the bucket is used as part of the hostname (`:virtual_host`,
+  `:s3_accelerate` or `:bucket_as_host`) it may only contain letters, digits,
+  `.`, `-` and `_`. Any other bucket name raises `ArgumentError`, because it
+  would change the host the form action points at.
+
+  With `:bucket_as_host` the bucket name is the *whole* hostname, so whoever
+  chooses the bucket name chooses the host: `attacker.example` is a perfectly
+  valid hostname and no character check can reject it. **Never pass an
+  untrusted bucket name together with `bucket_as_host: true`.** If bucket names
+  are not fully under your control, set the option param
+  `:bucket_as_host_allowlist` to the list of hostnames you trust; any other
+  bucket then raises `ArgumentError` (exact match, case-insensitive):
+
+  ```
+  ExAws.S3.presigned_post(config, "assets.example.com", "my-object",
+    virtual_host: true,
+    bucket_as_host: true,
+    bucket_as_host_allowlist: ["assets.example.com", "media.example.com"]
+  )
+  ```
+
+  When the option param is not given, the `bucket_as_host_allowlist` key of the
+  S3 config is used, which is the same setting `ExAws.Operation.S3` checks for
+  requests. Reading it from the config needs a version of `ex_aws` that
+  supports that key; older versions do not keep the list intact, so pass the
+  option param there. Without an allowlist any syntactically valid hostname is
+  accepted.
   """
   @spec presigned_post(
           config :: map,
@@ -2098,6 +2202,7 @@ defmodule ExAws.S3 do
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
     bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
+    host_allowlist = bucket_as_host_allowlist(opts, config)
     {:ok, datetime} = DateTime.now("Etc/UTC")
     expiration_date = DateTime.add(datetime, expires_in, :second)
     datetime = datetime_to_erlang_time(datetime)
@@ -2135,7 +2240,7 @@ defmodule ExAws.S3 do
     signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, datetime, policy)
 
     %{
-      url: url_to_sign(bucket, nil, config, virtual_host, bucket_as_host),
+      url: post_url(bucket, config, virtual_host, bucket_as_host, host_allowlist),
       fields:
         %{
           "key" => key,
@@ -2154,12 +2259,31 @@ defmodule ExAws.S3 do
   defp put_bucket_body(region) do
     """
     <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <LocationConstraint>#{region}</LocationConstraint>
+      <LocationConstraint>#{escape_xml_string(region)}</LocationConstraint>
     </CreateBucketConfiguration>
     """
   end
 
-  defp url_to_sign(bucket, object, config, virtual_host, bucket_as_host) do
+  # The option param wins over the S3 config key of the same name. A `nil`
+  # option counts as not given, so it cannot switch off an allowlist that is
+  # set in the config.
+  defp bucket_as_host_allowlist(opts, config) do
+    case Keyword.get(opts, :bucket_as_host_allowlist) do
+      nil -> config[:bucket_as_host_allowlist]
+      allowlist -> allowlist
+    end
+  end
+
+  defp post_url(bucket, config, virtual_host, bucket_as_host, host_allowlist) do
+    {base, path} = url_parts(bucket, nil, config, virtual_host, bucket_as_host, host_allowlist)
+    base <> path
+  end
+
+  # Returns the URL of a bucket or object in two parts: `scheme://host[:port]`
+  # and the *unencoded* path. They are kept apart so that nothing in the bucket
+  # or object key has to be found again by parsing a URL string, where a `?`
+  # or `#` in the key would be read as the start of the query or fragment.
+  defp url_parts(bucket, object, config, virtual_host, bucket_as_host, host_allowlist) do
     port = sanitized_port_component(config)
 
     object =
@@ -2171,14 +2295,78 @@ defmodule ExAws.S3 do
 
     case virtual_host do
       true ->
+        bucket = validate_host_bucket!(bucket)
+
         case bucket_as_host do
-          true -> "#{config[:scheme]}#{bucket}#{port}#{object}"
-          false -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
+          true ->
+            # The bucket is the whole hostname here, so the character check
+            # alone cannot keep the URL off an attacker-chosen host.
+            bucket = validate_allowed_host!(bucket, host_allowlist)
+            {"#{config[:scheme]}#{bucket}#{port}", object}
+
+          false ->
+            {"#{config[:scheme]}#{bucket}.#{config[:host]}#{port}", object}
         end
 
       false ->
-        "#{config[:scheme]}#{config[:host]}#{port}/#{bucket}#{object}"
+        {"#{config[:scheme]}#{config[:host]}#{port}", "/#{bucket}#{object}"}
     end
+  end
+
+  # `ExAws.Auth.presigned_url/9` takes the URL to sign either as a `%URI{}`
+  # whose `path` is the unencoded request path, or as a string. Only the first
+  # form can carry a `?` in the object key: in a string the `?` starts the
+  # query, so the key `report.pdf?acl` would be signed as the object
+  # `report.pdf` with the `acl` sub-resource (GHSA-96q9-mcc7-hqj8).
+  #
+  # ex_aws releases without that fix accept only the string. They still work
+  # for every key that has no `?` in it; one that does is refused rather than
+  # presigned for a different object.
+  defp presign_target({base, path}) do
+    cond do
+      auth_accepts_uri?() ->
+        %URI{URI.parse(base) | path: path}
+
+      String.contains?(path, "?") ->
+        raise ArgumentError,
+              "cannot presign #{inspect(path)}: the installed version of ex_aws would treat " <>
+                "the `?` as the start of the query string. Upgrade ex_aws to a version that " <>
+                "includes the fix for GHSA-96q9-mcc7-hqj8, and pass query parameters with " <>
+                "the `:query_params` option instead of appending them to the object key"
+
+      true ->
+        base <> path
+    end
+  end
+
+  # Whether the installed ex_aws presigns a `%URI{}` and keeps a `?` in its
+  # path as part of the key. Asked once by presigning a fixed URI with dummy
+  # credentials; nothing is sent anywhere.
+  defp auth_accepts_uri? do
+    key = {__MODULE__, :auth_accepts_uri}
+
+    case :persistent_term.get(key, nil) do
+      nil ->
+        accepts? = probe_auth_accepts_uri()
+        :persistent_term.put(key, accepts?)
+        accepts?
+
+      accepts? ->
+        accepts?
+    end
+  end
+
+  defp probe_auth_accepts_uri do
+    uri = %URI{URI.parse("https://probe.invalid") | path: "/a?b"}
+    config = %{access_key_id: "probe", secret_access_key: "probe", region: "us-east-1"}
+    datetime = {{2000, 1, 1}, {0, 0, 0}}
+
+    match?(
+      {:ok, "https://probe.invalid/a%3Fb?" <> _},
+      ExAws.Auth.presigned_url(:get, uri, :s3, datetime, config, 60, [], nil, [])
+    )
+  rescue
+    _ -> false
   end
 
   defp request(http_method, bucket, path, data \\ [], opts \\ %{}) do
@@ -2187,7 +2375,7 @@ defmodule ExAws.S3 do
       bucket: bucket,
       path: path,
       body: data[:body] || "",
-      headers: data[:headers] || %{},
+      headers: validate_headers!(data[:headers] || %{}),
       resource: data[:resource] || "",
       params: data[:params] || %{}
     }
@@ -2196,17 +2384,5 @@ defmodule ExAws.S3 do
 
   defp put_accelerate_host(config) do
     Map.put(config, :host, "s3-accelerate.amazonaws.com")
-  end
-
-  defp escape_xml_string(value) do
-    String.replace(value, ["'", "\"", "&", "<", ">", "\r", "\n"], fn
-      "'" -> "&apos;"
-      "\"" -> "&quot;"
-      "&" -> "&amp;"
-      "<" -> "&lt;"
-      ">" -> "&gt;"
-      "\r" -> "&#13;"
-      "\n" -> "&#10;"
-    end)
   end
 end
