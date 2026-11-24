@@ -60,6 +60,7 @@ defmodule ExAws.S3 do
           | {:query_params, [{binary, binary}]}
           | {:headers, [{binary, binary}]}
           | {:bucket_as_host, boolean}
+          | {:bucket_as_host_allowlist, [binary]}
           | {:start_datetime, Calendar.naive_datetime() | :calendar.datetime()}
         ]
 
@@ -72,6 +73,7 @@ defmodule ExAws.S3 do
           | {:virtual_host, boolean}
           | {:s3_accelerate, boolean}
           | {:bucket_as_host, boolean}
+          | {:bucket_as_host_allowlist, [binary]}
         ]
 
   @type presigned_post_result :: %{
@@ -1990,6 +1992,45 @@ defmodule ExAws.S3 do
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
 
+  ## Object keys containing `?`
+
+  The object key is signed as given: a `?` in it is part of the key and never
+  starts the query string, so `"report.pdf?acl"` is the object of that name.
+  Pass query parameters with `:query_params`, not by appending them to the key.
+  This needs a version of `ex_aws` that includes the fix for
+  GHSA-96q9-mcc7-hqj8. With an older `ex_aws`, a bucket or key containing `?`
+  raises `ArgumentError`.
+
+  ## Bucket names and the URL host
+
+  When the bucket is used as part of the hostname (`:virtual_host`,
+  `:s3_accelerate` or `:bucket_as_host`) it may only contain letters, digits,
+  `.`, `-` and `_`. Any other bucket name raises `ArgumentError`, because it
+  would change the host the URL points at.
+
+  With `:bucket_as_host` the bucket name is the *whole* hostname, so whoever
+  chooses the bucket name chooses the host: `attacker.example` is a perfectly
+  valid hostname and no character check can reject it. **Never pass an
+  untrusted bucket name together with `bucket_as_host: true`.** If bucket names
+  are not fully under your control, set the option param
+  `:bucket_as_host_allowlist` to the list of hostnames you trust; any other
+  bucket then raises `ArgumentError` (exact match, case-insensitive):
+
+  ```
+  ExAws.S3.presigned_url(config, :get, "assets.example.com", "my-object",
+    virtual_host: true,
+    bucket_as_host: true,
+    bucket_as_host_allowlist: ["assets.example.com", "media.example.com"]
+  )
+  ```
+
+  When the option param is not given, the `bucket_as_host_allowlist` key of the
+  S3 config is used, which is the same setting `ExAws.Operation.S3` checks for
+  requests. Reading it from the config needs a version of `ex_aws` that
+  supports that key; older versions do not keep the list intact, so pass the
+  option param there. Without an allowlist any syntactically valid hostname is
+  accepted.
+
   Option param `:start_datetime` can be used to modify the start date for the presigned url, which
   allows for cache friendly urls.
 
@@ -2021,6 +2062,7 @@ defmodule ExAws.S3 do
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
     bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
+    host_allowlist = bucket_as_host_allowlist(opts, config)
     headers = Keyword.get(opts, :headers, [])
 
     {config, virtual_host} =
@@ -2033,7 +2075,10 @@ defmodule ExAws.S3 do
         {:error, "expires_in_exceeds_one_week"}
 
       false ->
-        url = url_to_sign(bucket, object, config, virtual_host, bucket_as_host)
+        url =
+          bucket
+          |> url_parts(object, config, virtual_host, bucket_as_host, host_allowlist)
+          |> presign_target()
 
         datetime =
           Keyword.get(opts, :start_datetime, NaiveDateTime.utc_now())
@@ -2073,6 +2118,36 @@ defmodule ExAws.S3 do
   When option param `:bucket_as_host` is `true`, the bucket name will be used as the full hostname.
   In this case, bucket must be set to a full hostname, for example `mybucket.example.com`.
   The `bucket_as_host` must be passed along with `virtual_host=true`
+
+  ## Bucket names and the form action host
+
+  When the bucket is used as part of the hostname (`:virtual_host`,
+  `:s3_accelerate` or `:bucket_as_host`) it may only contain letters, digits,
+  `.`, `-` and `_`. Any other bucket name raises `ArgumentError`, because it
+  would change the host the form action points at.
+
+  With `:bucket_as_host` the bucket name is the *whole* hostname, so whoever
+  chooses the bucket name chooses the host: `attacker.example` is a perfectly
+  valid hostname and no character check can reject it. **Never pass an
+  untrusted bucket name together with `bucket_as_host: true`.** If bucket names
+  are not fully under your control, set the option param
+  `:bucket_as_host_allowlist` to the list of hostnames you trust; any other
+  bucket then raises `ArgumentError` (exact match, case-insensitive):
+
+  ```
+  ExAws.S3.presigned_post(config, "assets.example.com", "my-object",
+    virtual_host: true,
+    bucket_as_host: true,
+    bucket_as_host_allowlist: ["assets.example.com", "media.example.com"]
+  )
+  ```
+
+  When the option param is not given, the `bucket_as_host_allowlist` key of the
+  S3 config is used, which is the same setting `ExAws.Operation.S3` checks for
+  requests. Reading it from the config needs a version of `ex_aws` that
+  supports that key; older versions do not keep the list intact, so pass the
+  option param there. Without an allowlist any syntactically valid hostname is
+  accepted.
   """
   @spec presigned_post(
           config :: map,
@@ -2085,6 +2160,7 @@ defmodule ExAws.S3 do
     virtual_host = Keyword.get(opts, :virtual_host, false)
     s3_accelerate = Keyword.get(opts, :s3_accelerate, false)
     bucket_as_host = Keyword.get(opts, :bucket_as_host, false)
+    host_allowlist = bucket_as_host_allowlist(opts, config)
     {:ok, datetime} = DateTime.now("Etc/UTC")
     expiration_date = DateTime.add(datetime, expires_in, :second)
     datetime = datetime_to_erlang_time(datetime)
@@ -2122,7 +2198,7 @@ defmodule ExAws.S3 do
     signature = ExAws.Auth.Signatures.generate_signature_v4("s3", config, datetime, policy)
 
     %{
-      url: url_to_sign(bucket, nil, config, virtual_host, bucket_as_host),
+      url: post_url(bucket, config, virtual_host, bucket_as_host, host_allowlist),
       fields:
         %{
           "key" => key,
@@ -2146,7 +2222,26 @@ defmodule ExAws.S3 do
     """
   end
 
-  defp url_to_sign(bucket, object, config, virtual_host, bucket_as_host) do
+  # The option param wins over the S3 config key of the same name. A `nil`
+  # option counts as not given, so it cannot switch off an allowlist that is
+  # set in the config.
+  defp bucket_as_host_allowlist(opts, config) do
+    case Keyword.get(opts, :bucket_as_host_allowlist) do
+      nil -> config[:bucket_as_host_allowlist]
+      allowlist -> allowlist
+    end
+  end
+
+  defp post_url(bucket, config, virtual_host, bucket_as_host, host_allowlist) do
+    {base, path} = url_parts(bucket, nil, config, virtual_host, bucket_as_host, host_allowlist)
+    base <> path
+  end
+
+  # Returns the URL of a bucket or object in two parts: `scheme://host[:port]`
+  # and the *unencoded* path. They are kept apart so that nothing in the bucket
+  # or object key has to be found again by parsing a URL string, where a `?`
+  # or `#` in the key would be read as the start of the query or fragment.
+  defp url_parts(bucket, object, config, virtual_host, bucket_as_host, host_allowlist) do
     port = sanitized_port_component(config)
 
     object =
@@ -2158,14 +2253,78 @@ defmodule ExAws.S3 do
 
     case virtual_host do
       true ->
+        bucket = validate_host_bucket!(bucket)
+
         case bucket_as_host do
-          true -> "#{config[:scheme]}#{bucket}#{port}#{object}"
-          false -> "#{config[:scheme]}#{bucket}.#{config[:host]}#{port}#{object}"
+          true ->
+            # The bucket is the whole hostname here, so the character check
+            # alone cannot keep the URL off an attacker-chosen host.
+            bucket = validate_allowed_host!(bucket, host_allowlist)
+            {"#{config[:scheme]}#{bucket}#{port}", object}
+
+          false ->
+            {"#{config[:scheme]}#{bucket}.#{config[:host]}#{port}", object}
         end
 
       false ->
-        "#{config[:scheme]}#{config[:host]}#{port}/#{bucket}#{object}"
+        {"#{config[:scheme]}#{config[:host]}#{port}", "/#{bucket}#{object}"}
     end
+  end
+
+  # `ExAws.Auth.presigned_url/9` takes the URL to sign either as a `%URI{}`
+  # whose `path` is the unencoded request path, or as a string. Only the first
+  # form can carry a `?` in the object key: in a string the `?` starts the
+  # query, so the key `report.pdf?acl` would be signed as the object
+  # `report.pdf` with the `acl` sub-resource (GHSA-96q9-mcc7-hqj8).
+  #
+  # ex_aws releases without that fix accept only the string. They still work
+  # for every key that has no `?` in it; one that does is refused rather than
+  # presigned for a different object.
+  defp presign_target({base, path}) do
+    cond do
+      auth_accepts_uri?() ->
+        %URI{URI.parse(base) | path: path}
+
+      String.contains?(path, "?") ->
+        raise ArgumentError,
+              "cannot presign #{inspect(path)}: the installed version of ex_aws would treat " <>
+                "the `?` as the start of the query string. Upgrade ex_aws to a version that " <>
+                "includes the fix for GHSA-96q9-mcc7-hqj8, and pass query parameters with " <>
+                "the `:query_params` option instead of appending them to the object key"
+
+      true ->
+        base <> path
+    end
+  end
+
+  # Whether the installed ex_aws presigns a `%URI{}` and keeps a `?` in its
+  # path as part of the key. Asked once by presigning a fixed URI with dummy
+  # credentials; nothing is sent anywhere.
+  defp auth_accepts_uri? do
+    key = {__MODULE__, :auth_accepts_uri}
+
+    case :persistent_term.get(key, nil) do
+      nil ->
+        accepts? = probe_auth_accepts_uri()
+        :persistent_term.put(key, accepts?)
+        accepts?
+
+      accepts? ->
+        accepts?
+    end
+  end
+
+  defp probe_auth_accepts_uri do
+    uri = %URI{URI.parse("https://probe.invalid") | path: "/a?b"}
+    config = %{access_key_id: "probe", secret_access_key: "probe", region: "us-east-1"}
+    datetime = {{2000, 1, 1}, {0, 0, 0}}
+
+    match?(
+      {:ok, "https://probe.invalid/a%3Fb?" <> _},
+      ExAws.Auth.presigned_url(:get, uri, :s3, datetime, config, 60, [], nil, [])
+    )
+  rescue
+    _ -> false
   end
 
   defp request(http_method, bucket, path, data \\ [], opts \\ %{}) do

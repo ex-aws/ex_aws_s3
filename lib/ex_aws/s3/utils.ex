@@ -118,6 +118,71 @@ defmodule ExAws.S3.Utils do
   defp header_to_binary(value), do: to_string(value)
 
   @doc """
+  Validates that a bucket name is safe to use as (part of) a request hostname.
+
+  Returns the bucket name as a string. Raises `ArgumentError` unless it
+  consists only of letters, digits, `.`, `-` and `_`. Any other character (such as `/`, `?`, `#`, `@`,
+  `:` or whitespace) would change which host a virtual-host style request or
+  presigned URL points at: a bucket named `attacker.example/x?` turns into
+  `https://attacker.example/x?.s3.amazonaws.com/key`, so the signed request
+  would be sent to `attacker.example`.
+  """
+  def validate_host_bucket!(bucket) when is_binary(bucket) and bucket != "" do
+    if hostname_chars?(bucket) do
+      bucket
+    else
+      raise ArgumentError,
+            "invalid bucket name #{inspect(bucket)} for virtual host style requests: " <>
+              "only letters, digits, `.`, `-` and `_` are allowed"
+    end
+  end
+
+  # Atom bucket names are accepted for requests by `ExAws.Operation.S3`, so
+  # they are accepted here too and checked as the string they turn into.
+  def validate_host_bucket!(bucket) when is_atom(bucket) and bucket != nil do
+    bucket |> Atom.to_string() |> validate_host_bucket!()
+  end
+
+  def validate_host_bucket!(bucket) do
+    raise ArgumentError, "invalid bucket name #{inspect(bucket)} for virtual host style requests"
+  end
+
+  @doc """
+  Validates a `bucket_as_host` hostname against an allowlist of trusted hosts.
+
+  With `bucket_as_host: true` the bucket name is the entire hostname, so
+  `validate_host_bucket!/1` cannot stop a bucket such as `attacker.example` or
+  `169.254.169.254` from becoming the host. When `allowlist` is a list, the
+  host must match one of its entries exactly (case-insensitive) or
+  `ArgumentError` is raised. When it is `nil`, no allowlist is configured and
+  the host is returned unchanged.
+  """
+  def validate_allowed_host!(host, nil), do: host
+
+  def validate_allowed_host!(host, allowlist) when is_list(allowlist) do
+    downcased = String.downcase(host)
+
+    if Enum.any?(allowlist, &(is_binary(&1) and String.downcase(&1) == downcased)) do
+      host
+    else
+      raise ArgumentError,
+            "bucket #{inspect(host)} is not in the configured `bucket_as_host_allowlist`"
+    end
+  end
+
+  def validate_allowed_host!(_host, allowlist) do
+    raise ArgumentError,
+          "invalid `bucket_as_host_allowlist` #{inspect(allowlist)}: expected a list of hostnames"
+  end
+
+  defp hostname_chars?(<<c, rest::binary>>)
+       when c in ?a..?z or c in ?A..?Z or c in ?0..?9 or c in [?., ?-, ?_],
+       do: hostname_chars?(rest)
+
+  defp hostname_chars?(<<>>), do: true
+  defp hostname_chars?(_), do: false
+
+  @doc """
   format_and_take %{param_one: "v1", param_two: "v2"}, [:param_one]
   #=> %{"param-one" => "v1"}
   """
@@ -435,7 +500,7 @@ defmodule ExAws.S3.Utils do
   def sanitized_port_component(_), do: ""
 
   def build_bucket_url(config, bucket_name) do
-    "#{config[:scheme]}#{bucket_name}.#{config[:host]}"
+    "#{config[:scheme]}#{validate_host_bucket!(bucket_name)}.#{config[:host]}"
   end
 
   defp acl_condition({:starts_with, starts_with}), do: [["starts-with", "$key", starts_with]]
