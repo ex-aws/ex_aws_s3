@@ -17,15 +17,18 @@ defmodule ExAws.S3.Download do
   def get_chunk(op, %{start_byte: start_byte, end_byte: end_byte}, config) do
     %{body: body} =
       op.bucket
-      |> ExAws.S3.get_object(op.path, range: "bytes=#{start_byte}-#{end_byte}")
+      |> ExAws.S3.get_object(
+        op.path,
+        Keyword.merge(op.opts, range: "bytes=#{start_byte}-#{end_byte}")
+      )
       |> ExAws.request!(config)
 
     {start_byte, body}
   end
 
   def build_chunk_stream(op, config) do
-    op.bucket
-    |> get_file_size(op.path, config)
+    op
+    |> get_file_size(config)
     |> chunk_stream(op.opts[:chunk_size] || 1024 * 1024)
   end
 
@@ -47,8 +50,9 @@ defmodule ExAws.S3.Download do
     end)
   end
 
-  defp get_file_size(bucket, path, config) do
-    %{headers: headers} = ExAws.S3.head_object(bucket, path) |> ExAws.request!(config)
+  defp get_file_size(op, config) do
+    %{headers: headers} =
+      ExAws.S3.head_object(op.bucket, op.path, op.opts) |> ExAws.request!(config)
 
     headers
     |> Enum.find(fn {k, _} -> String.downcase(k) == "content-length" end)
