@@ -37,4 +37,27 @@ defmodule ExAws.S3IntegrationTest do
 
     assert %{buckets: [%{name: "ex-aws-s3-test-bucket"}]} = body
   end
+
+  test "#delete_multiple_objects sends the delete sub-resource in the query string", %{
+    bypass: bypass
+  } do
+    test_pid = self()
+
+    Bypass.expect_once(bypass, fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      send(test_pid, {:request, conn.method, conn.request_path, conn.query_params})
+
+      conn
+      |> Plug.Conn.put_resp_header("Content-Type", "application/xml")
+      |> Plug.Conn.send_resp(
+        200,
+        ~S(<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"/>)
+      )
+    end)
+
+    ExAws.S3.delete_multiple_objects("bucket", ["foo", "bar"])
+    |> ExAws.request!(exaws_config_for_bypass(bypass))
+
+    assert_received {:request, "POST", "/bucket/", %{"delete" => _}}
+  end
 end
