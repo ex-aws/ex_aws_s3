@@ -1,3 +1,6 @@
+# This workflow is kept around in case we are able to re-enable automated MinIO testing in the.
+# Currently, the MinIO Docker images are not available for download.
+
 name: MinIO Integration Tests
 on: [push, pull_request]
 
@@ -11,6 +14,9 @@ permissions:
   contents: read
 
 jobs:
+  ####### WORKFLOW DISABLED UNTIL MINIO IMAGES ARE AVAILABLE AGAIN
+  if: false
+  #######
   minio-integration:
     runs-on: ubuntu-24.04
     name: MinIO Integration Tests
