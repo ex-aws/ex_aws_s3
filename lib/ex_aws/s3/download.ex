@@ -17,7 +17,10 @@ defmodule ExAws.S3.Download do
   def get_chunk(op, %{start_byte: start_byte, end_byte: end_byte}, config) do
     %{body: body} =
       op.bucket
-      |> ExAws.S3.get_object(op.path, range: "bytes=#{start_byte}-#{end_byte}")
+      |> ExAws.S3.get_object(
+        op.path,
+        [range: "bytes=#{start_byte}-#{end_byte}"] ++ request_opts(op)
+      )
       |> ExAws.request!(config)
 
     {start_byte, body}
@@ -25,7 +28,7 @@ defmodule ExAws.S3.Download do
 
   def build_chunk_stream(op, config) do
     op.bucket
-    |> get_file_size(op.path, config)
+    |> get_file_size(op.path, config, request_opts(op))
     |> chunk_stream(op.opts[:chunk_size] || 1024 * 1024)
   end
 
@@ -47,8 +50,8 @@ defmodule ExAws.S3.Download do
     end)
   end
 
-  defp get_file_size(bucket, path, config) do
-    %{headers: headers} = ExAws.S3.head_object(bucket, path) |> ExAws.request!(config)
+  defp get_file_size(bucket, path, config, opts) do
+    %{headers: headers} = ExAws.S3.head_object(bucket, path, opts) |> ExAws.request!(config)
 
     headers
     |> Enum.find(fn {k, _} -> String.downcase(k) == "content-length" end)
@@ -61,6 +64,8 @@ defmodule ExAws.S3.Download do
         content_length |> List.first() |> String.to_integer()
     end
   end
+
+  defp request_opts(op), do: Keyword.take(op.opts, [:encryption])
 end
 
 defimpl ExAws.Operation, for: ExAws.S3.Download do
