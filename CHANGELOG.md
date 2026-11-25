@@ -1,5 +1,9 @@
 # Changelog
 
+v2.6.1 (2026-11-25)
+- Fix: `delete_multiple_objects/3` (and `delete_all_objects/3`, which uses it) deleted nothing with `ex_aws` 2.8.0 and later. Those releases percent-encode the S3 request path, so the `/?delete` path was sent as the object key `?delete`. `delete` is now sent as a sub-resource, which works with every `ex_aws` 2.x release.
+- Require Elixir 1.17 or later (and so OTP 27 or later), matching the minimum versions required by `ex_aws` 2.8.2.
+
 v2.6.0 (2026-11-24)
 - Security: XML-escape all caller-supplied values that are placed inside XML request bodies. Previously these were interpolated verbatim, so a value containing XML metacharacters could inject additional elements into the request. Fixes GHSA-pcgv-phrm-r85v (`put_bucket_lifecycle/2`), GHSA-cf93-7gwh-6w98 (bucket logging, notification, replication and website configuration), GHSA-979q-5hj9-vvvv (bucket and object tagging) and GHSA-mwxg-gfj8-x32v (version ids in `delete_multiple_objects/3`). The same fix is applied to `put_bucket/3` (region), `put_bucket_cors/2`, `put_bucket_logging/2`, `put_bucket_notification/2`, `put_bucket_replication/2`, `put_bucket_tagging/2`, `put_object_tagging/4`, `put_bucket_website/2`, `post_object_restore/4`, `delete_multiple_objects/3` (version ids) and `complete_multipart_upload/4` (ETags).
 - Security: reject grantee identifiers containing `"`, `,`, control or non-ASCII characters in the `grant_read`, `grant_write`, `grant_read_acp`, `grant_write_acp` and `grant_full_control` options. An untrusted grantee value could previously inject additional grantees (including the `AllUsers` group) into the `x-amz-grant-*` headers (GHSA-6fg2-v8g4-vfg2).
