@@ -122,6 +122,10 @@ if Code.ensure_loaded?(SweetXml) do
     def parse_list_parts({:ok, %{body: xml} = resp}) do
       parsed_body =
         SweetXml.xpath(xml, ~x"//ListPartsResult",
+          part_number_marker: ~x"./PartNumberMarker/text()"s,
+          next_part_number_marker: ~x"./NextPartNumberMarker/text()"s,
+          max_parts: ~x"./MaxParts/text()"s,
+          is_truncated: ~x"./IsTruncated/text()"s,
           parts: [
             ~x"./Part"l,
             part_number: ~x"./PartNumber/text()"s,
